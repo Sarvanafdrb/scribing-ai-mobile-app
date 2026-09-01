@@ -14,6 +14,8 @@ import { useWorkspaceStore } from "@/store/workspace.store";
 import { DoctorCard } from "@/components/patients/DoctorCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Card } from "@/components/ui/Card";
+import { WorkspaceSwitcherSheet } from "@/components/workspace/WorkspaceSwitcherSheet";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { getUserOrganizationName } from "@/types/auth.types";
 import { colors, spacing, typography } from "@/theme";
 
@@ -22,7 +24,10 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const workspace = useWorkspaceStore((s) => s.selectedWorkspace);
+  const { workspaces } = useWorkspaces();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
+  const canSwitchWorkspace = workspaces.length > 1;
 
   const handleLogout = () => {
     logout();
@@ -47,6 +52,15 @@ export default function ProfileScreen() {
           </Text>
           {workspace?.organizationCode ? (
             <Text style={styles.orgCode}>Code: {workspace.organizationCode}</Text>
+          ) : null}
+          {canSwitchWorkspace ? (
+            <Pressable
+              style={styles.switchWorkspaceBtn}
+              onPress={() => setWorkspaceSheetOpen(true)}
+            >
+              <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
+              <Text style={styles.switchWorkspaceText}>Switch workspace</Text>
+            </Pressable>
           ) : null}
         </Card>
 
@@ -78,6 +92,11 @@ export default function ProfileScreen() {
         destructive
         onCancel={() => setConfirmLogout(false)}
         onConfirm={handleLogout}
+      />
+
+      <WorkspaceSwitcherSheet
+        visible={workspaceSheetOpen}
+        onClose={() => setWorkspaceSheetOpen(false)}
       />
     </View>
   );
@@ -131,6 +150,16 @@ const styles = StyleSheet.create({
   },
   orgName: { ...typography.bodyMedium, color: colors.foreground },
   orgCode: { ...typography.caption, color: colors.muted, marginTop: 4 },
+  switchWorkspaceBtn: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  switchWorkspaceText: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+  },
   menu: {
     backgroundColor: colors.white,
     borderRadius: 16,

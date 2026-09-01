@@ -26,8 +26,10 @@ import { useSession } from "@/hooks/sessions/useSession";
 import { useAiNotes } from "@/hooks/ai-notes/useAiNotes";
 import { sessionService } from "@/services/session.service";
 import { aiNotesKeys, sessionKeys } from "@/services/query-keys";
+import { SessionSmsPanel } from "@/components/consultation/SessionSmsPanel";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import { getPatientFullName } from "@/utils/patient.utils";
+import { isConsultationCompleted } from "@/utils/session-status.utils";
 import { getSessionDepartmentName } from "@/types/session.types";
 import {
   buildAiNotesExportContent,
@@ -268,6 +270,13 @@ export default function PreviewScreen() {
             onPress={() => setVoiceEditOpen(true)}
           />
         </View>
+        {isConsultationCompleted(session.status) ? (
+          <SessionSmsPanel
+            sessionId={sessionId!}
+            session={session}
+            patient={patient}
+          />
+        ) : null}
         <Button
           title="Save Consultation"
           size="lg"

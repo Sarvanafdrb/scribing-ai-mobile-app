@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { GlassHeader } from "@/components/ui/GlassHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { SessionSmsPanel } from "@/components/consultation/SessionSmsPanel";
 import { useSession } from "@/hooks/sessions/useSession";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import { getPatientFullName } from "@/utils/patient.utils";
@@ -40,6 +41,13 @@ export default function CompletedScreen() {
               ? `${getPatientFullName(patient)}'s consultation has been completed.`
               : "The consultation has been completed successfully."}
           </Text>
+          {sessionId && session ? (
+            <SessionSmsPanel
+              sessionId={sessionId}
+              session={session}
+              patient={patient}
+            />
+          ) : null}
           <Button
             title="Back to Home"
             onPress={() => router.replace("/(tabs)")}

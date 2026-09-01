@@ -6,10 +6,15 @@ import { useAuthStore } from "@/store/auth.store";
 export const useWorkspaces = () => {
   const token = useAuthStore((state) => state.token);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: workspaceKeys.list(),
     queryFn: () => workspaceService.getAll(),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
   });
+
+  return {
+    ...query,
+    workspaces: query.data || [],
+  };
 };

@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "scribingai",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scribingai.mobile",
@@ -28,9 +27,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS",
-        "INTERNET"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -63,15 +62,19 @@
           "imageWidth": 76
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
-      "typedRoutes": false,
-      "reactCompiler": true
+      "typedRoutes": false
     },
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "b56faa07-8bbd-49a6-952f-fde17e396930"
       }
     }
   }
