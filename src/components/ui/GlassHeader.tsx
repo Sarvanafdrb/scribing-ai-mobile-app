@@ -3,15 +3,17 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { colors, spacing, typography } from "@/theme";
 import { Platform } from "react-native";
+import { safeRouterBack } from "@/utils/navigation.utils";
+import type { Href } from "expo-router";
 
 interface GlassHeaderProps {
   title: string;
   subtitle?: string;
   showBack?: boolean;
   onBack?: () => void;
+  backFallbackHref?: Href;
   right?: React.ReactNode;
   transparent?: boolean;
 }
@@ -21,16 +23,25 @@ export function GlassHeader({
   subtitle,
   showBack,
   onBack,
+  backFallbackHref,
   right,
 }: GlassHeaderProps) {
   const insets = useSafeAreaInsets();
+
+  const handleBackPress = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    safeRouterBack(backFallbackHref);
+  };
 
   const content = (
     <View style={[styles.inner, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.row}>
         {showBack ? (
           <Pressable
-            onPress={onBack || (() => router.back())}
+            onPress={handleBackPress}
             style={styles.back}
             hitSlop={10}
           >

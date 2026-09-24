@@ -29,6 +29,49 @@ export const formatDate = (value?: string | null) => {
   });
 };
 
+const startOfLocalDay = (date: Date) => {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+};
+
+/** History list: Today / Yesterday / date + time. */
+export const formatHistoryWhen = (value?: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const time = formatTime(value);
+  const today = startOfLocalDay(new Date());
+  const day = startOfLocalDay(date);
+  const dayDiff = Math.round(
+    (today.getTime() - day.getTime()) / (24 * 60 * 60 * 1000),
+  );
+
+  if (dayDiff === 0) return `Today · ${time}`;
+  if (dayDiff === 1) return `Yesterday · ${time}`;
+  return `${formatDate(value)} · ${time}`;
+};
+
+/** Appointments: Today / Tomorrow / date + time (future-friendly). */
+export const formatAppointmentWhen = (value?: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const time = formatTime(value);
+  const today = startOfLocalDay(new Date());
+  const day = startOfLocalDay(date);
+  const dayDiff = Math.round(
+    (day.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+  );
+
+  if (dayDiff === 0) return `Today · ${time}`;
+  if (dayDiff === 1) return `Tomorrow · ${time}`;
+  if (dayDiff === -1) return `Yesterday · ${time}`;
+  return `${formatDate(value)} · ${time}`;
+};
+
 export const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
   return `${formatDate(value)} · ${formatTime(value)}`;

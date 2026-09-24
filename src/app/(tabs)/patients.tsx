@@ -65,7 +65,7 @@ export default function PatientsScreen() {
       });
       const sessionId = String(session._id || session.id || "");
       if (!sessionId) throw new Error("Missing session id");
-      router.push(`/consultation/${sessionId}` as never);
+      router.push(`/consultation/${sessionId}/brief` as never);
     } catch (error: unknown) {
       const message =
         (
@@ -80,10 +80,15 @@ export default function PatientsScreen() {
   };
 
   const onPatientPress = (patient: Patient) => {
+    const id = getPatientId(patient);
     Alert.alert(getPatientFullName(patient), "What would you like to do?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Start Consultation",
+        text: "View profile",
+        onPress: () => router.push(`/patient/${id}` as never),
+      },
+      {
+        text: "Start consultation",
         onPress: () => startConsultation(patient),
       },
     ]);

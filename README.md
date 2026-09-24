@@ -56,12 +56,27 @@ Splash → Login → Home → Patient Details → Recording → Uploading
 
 APIs, session statuses, upload algorithm, and polling match the web app.
 
-## Tabs
+## Tabs (Doctor Workspace — aligned with web)
 
-- Home (encounter-based doctor queue)
-- Patients (search, create, start consult)
-- History
-- Profile
+- **Consultations** — today's clinic queue, appointment check-in, **Brief** + **Open** (same flow as web `/doctor/consultations`)
+- **Schedule** — today / week / upcoming appointments (read-only; check-in from Consultations)
+- **Patients** — search, profile, start consult → pre-visit brief
+- **History** — past sessions
+- **Profile** — workspace switcher, settings
+
+## Doctor Workspace flows (iOS & Android)
+
+| Web | Mobile |
+|-----|--------|
+| `/doctor/consultations` | Consultations tab |
+| Pre-visit brief | `/consultation/:id/brief` |
+| Workspace session | `/consultation/:id/*` (record → notes → preview) |
+| Save + disposition | Preview → **Save Consultation** sheet (home / follow-up / IP rounds) |
+| `/doctor/schedule` | Schedule tab |
+| `/doctor/patients/:id` | `/patient/:id` + history |
+| Appointment check-in | Consultations → **Check in** |
+
+Permissions match web: `SESSION_VIEW` + `RECORDING_CREATE` (`canAccessDoctorWorkspace`).
 
 ## Also included
 
@@ -197,6 +212,7 @@ Then on your **phone**:
 
 **Your PC LAN IP (current):** `192.168.18.71`
 
+- **Upload shows “Failed to fetch” / CORS on S3** → Normal in Expo **web** (browser blocks direct S3 PUT). The app automatically retries via **`POST …/recording/upload`** (API → storage). On a **phone** (Expo Go), direct S3 may still work; API fallback applies if it fails.
 - **Network error / login fails** → Check `EXPO_PUBLIC_API_URL` uses LAN IP and backend allows CORS from Expo
 - **Cannot connect** → Phone and PC must be on the same Wi‑Fi
 - **SMS not sent** → Consultation must be `completed`; patient needs valid 10-digit Indian mobile

@@ -15,6 +15,11 @@ import { Card } from "@/components/ui/Card";
 import { LoadingScreen, ErrorState } from "@/components/ui/EmptyState";
 import { useAiNotes } from "@/hooks/ai-notes/useAiNotes";
 import type { AiNotes, AiNotesMedication } from "@/types/ai-notes.types";
+import {
+  findClinicalCompletenessIssue,
+  getApiErrorMessage,
+  normalizeMedicationsForEditing,
+} from "@/utils/prescriptionMedication.utils";
 import { colors, radius, spacing, typography } from "@/theme";
 
 export default function AiNotesScreen() {
@@ -25,7 +30,15 @@ export default function AiNotesScreen() {
   const [draft, setDraft] = useState<AiNotes | null>(null);
 
   useEffect(() => {
-    if (aiNotes) setDraft(aiNotes);
+    if (aiNotes) {
+      setDraft({
+        ...aiNotes,
+        medications: normalizeMedicationsForEditing(
+          aiNotes.medications,
+          aiNotes.plan,
+        ),
+      });
+    }
   }, [aiNotes]);
 
   if (isLoading || isGenerating) {
@@ -54,6 +67,12 @@ export default function AiNotesScreen() {
   };
 
   const saveAndPreview = async () => {
+    const issue = findClinicalCompletenessIssue(draft.medications || []);
+    if (issue) {
+      Alert.alert("Prescription incomplete", issue.message);
+      return;
+    }
+
     try {
       await update.mutateAsync({
         summary: draft.summary,
@@ -65,8 +84,11 @@ export default function AiNotesScreen() {
         medications: draft.medications,
       });
       router.push(`/consultation/${sessionId}/preview`);
-    } catch {
-      Alert.alert("Save failed", "Could not update AI notes.");
+    } catch (error) {
+      Alert.alert(
+        "Save failed",
+        getApiErrorMessage(error, "Could not update AI notes."),
+      );
     }
   };
 
@@ -186,15 +208,30 @@ function MedicationEditor({
         placeholderTextColor={colors.mutedLight}
       />
       <View style={styles.medRow}>
-        {(["morning", "afternoon", "night", "days"] as const).map((key) => (
-          <TextInput
-            key={key}
-            value={medication[key] || ""}
-            onChangeText={(value) => onChange({ ...medication, [key]: value })}
-            style={styles.medDose}
-            placeholder={key}
-            placeholderTextColor={colors.mutedLight}
-          />
+        {(
+          [
+            { key: "morning" as const, label: "M" },
+            { key: "afternoon" as const, label: "A" },
+            { key: "night" as const, label: "N" },
+            { key: "days" as const, label: "Days" },
+          ] as const
+        ).map(({ key, label }) => (
+          <View key={key} style={styles.medDoseWrap}>
+            <Text style={styles.medDoseLabel}>{label}</Text>
+            <TextInput
+              value={medication[key] || ""}
+              onChangeText={(value) => onChange({ ...medication, [key]: value })}
+              style={[
+                styles.medDose,
+                key === "days" && !medication.days?.trim()
+                  ? styles.medDoseRequired
+                  : null,
+              ]}
+              placeholder={key === "days" ? "3" : "0"}
+              keyboardType={key === "days" ? "number-pad" : "default"}
+              placeholderTextColor={colors.mutedLight}
+            />
+          </View>
         ))}
       </View>
       <TextInput
@@ -245,8 +282,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   medRow: { flexDirection: "row", gap: spacing.sm },
+  medDoseWrap: { flex: 1, gap: 2 },
+  medDoseLabel: {
+    ...typography.caption,
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   medDose: {
-    flex: 1,
     ...typography.caption,
     color: colors.foreground,
     borderWidth: 1,
@@ -254,6 +298,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     padding: spacing.sm,
     textAlign: "center",
+    minHeight: 36,
+  },
+  medDoseRequired: {
+    borderColor: colors.warning,
   },
   medInstructions: {
     ...typography.caption,

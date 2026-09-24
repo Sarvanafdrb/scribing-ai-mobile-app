@@ -12,7 +12,7 @@ import {
   getPatientInitials,
 } from "@/utils/patient.utils";
 import { SESSION_STATUS_COLORS, SESSION_STATUS_LABELS } from "@/constants/status";
-import { formatTime } from "@/utils/date.utils";
+import { formatHistoryWhen } from "@/utils/date.utils";
 
 interface PatientCardProps {
   patient: Patient;
@@ -43,7 +43,11 @@ export function PatientCard({
               <Text style={styles.name} numberOfLines={1}>
                 {name}
               </Text>
-              {time ? <Text style={styles.time}>{formatTime(time)}</Text> : null}
+              {time ? (
+                <Text style={styles.time} numberOfLines={2}>
+                  {formatHistoryWhen(time)}
+                </Text>
+              ) : null}
             </View>
             <Text style={styles.meta} numberOfLines={1}>
               {[
@@ -101,6 +105,8 @@ const styles = StyleSheet.create({
   time: {
     ...typography.caption,
     color: colors.muted,
+    textAlign: "right",
+    maxWidth: 120,
   },
   meta: {
     ...typography.caption,

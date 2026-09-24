@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { api } from "@/services/api";
 import {
   CompleteRecordingData,
@@ -8,6 +9,49 @@ import { Session } from "@/types/session.types";
 import { getUploadsBaseUrl } from "@/utils/media.utils";
 
 export { getUploadsBaseUrl };
+
+const extensionForMime = (mime: string) => {
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("mp4") || mime.includes("m4a")) return "m4a";
+  if (mime.includes("ogg")) return "ogg";
+  return "m4a";
+};
+
+async function buildRecordingUploadFormData(
+  uri: string,
+  duration: number,
+  fileName: string,
+  mimeType: string,
+): Promise<FormData> {
+  const formData = new FormData();
+  formData.append("duration", String(Math.round(duration)));
+
+  if (Platform.OS === "web") {
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Could not read recording file (${response.status})`);
+    }
+    const blob = await response.blob();
+    const type = blob.type || mimeType || "audio/webm";
+    const ext = extensionForMime(type);
+    const baseName = fileName.replace(/\.[^.]+$/, "");
+    const name = `${baseName}.${ext}`;
+    const file =
+      typeof File !== "undefined"
+        ? new File([blob], name, { type })
+        : blob;
+    formData.append("audio", file, name);
+    return formData;
+  }
+
+  formData.append("audio", {
+    uri,
+    name: fileName,
+    type: mimeType,
+  } as unknown as Blob);
+  return formData;
+}
 
 export const resolveAudioUrl = (audioUrl: string): string => {
   if (audioUrl.startsWith("http://") || audioUrl.startsWith("https://")) {
@@ -54,21 +98,24 @@ export const recordingService = {
     duration: number,
     fileName = "recording.m4a",
     mimeType = "audio/m4a",
+    onProgress?: (progress: number) => void,
   ): Promise<Session> => {
-    const formData = new FormData();
-    formData.append("audio", {
+    const formData = await buildRecordingUploadFormData(
       uri,
-      name: fileName,
-      type: mimeType,
-    } as unknown as Blob);
-    formData.append("duration", String(Math.round(duration)));
+      duration,
+      fileName,
+      mimeType,
+    );
 
     const response = await api.post(
       `/sessions/${sessionId}/recording/upload`,
       formData,
       {
-        headers: {
-          "Content-Type": "multipart/form-data",
+        timeout: 10 * 60 * 1000,
+        onUploadProgress: (event) => {
+          if (!event.total) return;
+          const ratio = event.loaded / event.total;
+          onProgress?.(0.55 + ratio * 0.4);
         },
       },
     );

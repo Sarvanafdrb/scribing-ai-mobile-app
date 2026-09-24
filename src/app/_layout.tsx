@@ -40,6 +40,10 @@ export default function RootLayout() {
               name="consultation/[sessionId]"
               options={{ animation: "slide_from_right" }}
             />
+            <Stack.Screen
+              name="patient/[patientId]"
+              options={{ animation: "slide_from_right" }}
+            />
           </Stack>
         </QueryProvider>
       </SafeAreaProvider>

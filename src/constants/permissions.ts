@@ -11,7 +11,9 @@ export const PERMISSION_MODULES = [
   { id: "roles", label: "Roles", prefix: "ROLE", legacySlug: "role" },
   { id: "permissions", label: "Permissions", prefix: "PERMISSION", legacySlug: "permission" },
   { id: "patients", label: "Patients", prefix: "PATIENT", legacySlug: "patient" },
+  { id: "medicines", label: "Medicines", prefix: "MEDICINE", legacySlug: "medicine" },
   { id: "sessions", label: "Sessions", prefix: "SESSION", legacySlug: "session" },
+  { id: "appointments", label: "Appointments", prefix: "APPOINTMENT", legacySlug: "appointment" },
   { id: "reports", label: "Reports", prefix: "REPORT", legacySlug: "report" },
   { id: "settings", label: "Settings", prefix: "SETTINGS", legacySlug: "settings" },
   { id: "recording", label: "Recording", prefix: "RECORDING", legacySlug: "recording" },
@@ -71,6 +73,15 @@ export const PATIENT_CREATE = "PATIENT_CREATE";
 export const PATIENT_EDIT = "PATIENT_EDIT";
 export const PATIENT_DELETE = "PATIENT_DELETE";
 
+export const APPOINTMENT_VIEW = "APPOINTMENT_VIEW";
+export const APPOINTMENT_CREATE = "APPOINTMENT_CREATE";
+export const APPOINTMENT_EDIT = "APPOINTMENT_EDIT";
+export const APPOINTMENT_DELETE = "APPOINTMENT_DELETE";
+
+export const SESSION_VIEW = "SESSION_VIEW";
+export const SESSION_CREATE = "SESSION_CREATE";
+export const RECORDING_CREATE = "RECORDING_CREATE";
+
 export function canManageAllUsersFromPermissions(
   permissions: string[],
   isSuperAdmin = false,
@@ -79,5 +90,17 @@ export function canManageAllUsersFromPermissions(
   return (
     hasPermissionCode(permissions, USER_CREATE) ||
     hasPermissionCode(permissions, "user:create")
+  );
+}
+
+/** Minimum permissions to use the clinical Doctor Workspace (matches web). */
+export function canAccessDoctorWorkspace(
+  permissions: string[],
+  isSuperAdmin = false,
+): boolean {
+  if (isSuperAdmin) return true;
+  return (
+    hasPermissionCode(permissions, SESSION_VIEW) &&
+    hasPermissionCode(permissions, RECORDING_CREATE)
   );
 }

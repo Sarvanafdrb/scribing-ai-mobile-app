@@ -17,6 +17,7 @@ import { Chip } from "@/components/ui/Chip";
 import { AudioPlayer } from "@/components/ui/AudioPlayer";
 import { LoadingScreen, ErrorState } from "@/components/ui/EmptyState";
 import { AdmitPatientSheet } from "@/components/patients/AdmitPatientSheet";
+import { SessionVitalsInlineGrid } from "@/components/consultation/SessionVitalsInlineGrid";
 import { useSession } from "@/hooks/sessions/useSession";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import {
@@ -30,7 +31,12 @@ import {
   isReviewReady,
   isTranscriptAvailable,
 } from "@/utils/session-status.utils";
-import { getConsultationRouteForStatus } from "@/utils/navigation.utils";
+import {
+  APP_HOME_HREF,
+  exitConsultationToHome,
+  getConsultationRouteForStatus,
+  safeRouterBack,
+} from "@/utils/navigation.utils";
 import { resolveMediaUrl } from "@/utils/media.utils";
 import { SESSION_STATUS_COLORS, SESSION_STATUS_LABELS } from "@/constants/status";
 import { formatDate } from "@/utils/date.utils";
@@ -95,11 +101,24 @@ export default function PatientDetailsScreen() {
     return "Continue";
   };
 
+  const handleBackFromDetails = () => {
+    if (
+      session.status === "uploading" ||
+      session.status === "recording" ||
+      session.status === "processing"
+    ) {
+      exitConsultationToHome();
+      return;
+    }
+    safeRouterBack(APP_HOME_HREF);
+  };
+
   return (
     <View style={styles.screen}>
       <GlassHeader
         title="Patient Details"
         showBack
+        onBack={handleBackFromDetails}
         subtitle={[
           session.sessionCode,
           getSessionDepartmentName(session),
@@ -197,41 +216,10 @@ export default function PatientDetailsScreen() {
         </Section>
 
         <Section title="Vitals">
-          <InfoGrid
-            items={[
-              {
-                label: "Temp",
-                value: session.vitals?.temperature
-                  ? `${session.vitals.temperature}°F`
-                  : "—",
-              },
-              {
-                label: "BP",
-                value:
-                  session.vitals?.bloodPressure?.systolic &&
-                  session.vitals?.bloodPressure?.diastolic
-                    ? `${session.vitals.bloodPressure.systolic}/${session.vitals.bloodPressure.diastolic}`
-                    : "—",
-              },
-              {
-                label: "HR",
-                value: session.vitals?.heartRate
-                  ? `${session.vitals.heartRate} bpm`
-                  : "—",
-              },
-              {
-                label: "SpO2",
-                value: session.vitals?.spo2
-                  ? `${session.vitals.spo2}%`
-                  : "—",
-              },
-              {
-                label: "Weight",
-                value: session.vitals?.weight
-                  ? `${session.vitals.weight} kg`
-                  : "—",
-              },
-            ]}
+          <SessionVitalsInlineGrid
+            sessionId={sessionId!}
+            vitals={session.vitals}
+            editable={!isConsultationCompleted(session.status)}
           />
         </Section>
 

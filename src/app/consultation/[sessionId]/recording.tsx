@@ -20,6 +20,7 @@ import { Waveform } from "@/components/consultation/Waveform";
 import { useAudioRecorder } from "@/hooks/recording/useAudioRecorder";
 import { useRecordingStore } from "@/store/recording.store";
 import { formatDuration } from "@/utils/date.utils";
+import { safeRouterBack } from "@/utils/navigation.utils";
 import { colors, spacing, typography } from "@/theme";
 
 export default function RecordingScreen() {
@@ -94,7 +95,14 @@ export default function RecordingScreen() {
 
   return (
     <View style={styles.screen}>
-      <GlassHeader title="Recording" showBack subtitle="Consultation audio" />
+      <GlassHeader
+        title="Recording"
+        showBack
+        subtitle="Consultation audio"
+        onBack={() =>
+          safeRouterBack(`/consultation/${sessionId}` as never)
+        }
+      />
       <View
         style={[
           styles.content,

@@ -24,9 +24,9 @@ import { VoiceEditSheet } from "@/components/ai-notes/VoiceEditSheet";
 import { VoiceEditReviewSheet } from "@/components/ai-notes/VoiceEditReviewSheet";
 import { useSession } from "@/hooks/sessions/useSession";
 import { useAiNotes } from "@/hooks/ai-notes/useAiNotes";
-import { sessionService } from "@/services/session.service";
 import { aiNotesKeys, sessionKeys } from "@/services/query-keys";
 import { SessionSmsPanel } from "@/components/consultation/SessionSmsPanel";
+import { SaveConsultationSheet } from "@/components/consultation/SaveConsultationSheet";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import { getPatientFullName } from "@/utils/patient.utils";
 import { isConsultationCompleted } from "@/utils/session-status.utils";
@@ -35,6 +35,10 @@ import {
   buildAiNotesExportContent,
   buildAiNotesExportHtml,
 } from "@/utils/ai-notes-export.utils";
+import {
+  findClinicalCompletenessIssue,
+  getApiErrorMessage,
+} from "@/utils/prescriptionMedication.utils";
 import type { VoiceEditPreviewResult } from "@/types/ai-notes.types";
 import { colors, spacing, typography } from "@/theme";
 
@@ -57,6 +61,7 @@ export default function PreviewScreen() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [voicePreview, setVoicePreview] =
     useState<VoiceEditPreviewResult | null>(null);
+  const [saveSheetOpen, setSaveSheetOpen] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({
     subjective: true,
     objective: true,
@@ -117,6 +122,11 @@ export default function PreviewScreen() {
 
   const saveConsultation = async () => {
     if (!sessionId || !aiNotes) return;
+    const issue = findClinicalCompletenessIssue(aiNotes.medications || []);
+    if (issue) {
+      Alert.alert("Prescription incomplete", issue.message);
+      return;
+    }
     try {
       setSaving(true);
       await update.mutateAsync({
@@ -128,20 +138,27 @@ export default function PreviewScreen() {
         remarks: aiNotes.remarks,
         medications: aiNotes.medications,
       });
-      await sessionService.updateStatus(sessionId, "completed");
-      await queryClient.invalidateQueries({
-        queryKey: sessionKeys.detail(sessionId),
-      });
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
-      await queryClient.invalidateQueries({
-        queryKey: aiNotesKeys.detail(sessionId),
-      });
-      router.replace(`/consultation/${sessionId}/completed`);
-    } catch {
-      Alert.alert("Save failed", "Could not complete the consultation.");
+      setSaveSheetOpen(true);
+    } catch (error) {
+      Alert.alert(
+        "Save failed",
+        getApiErrorMessage(error, "Could not save consultation notes."),
+      );
     } finally {
       setSaving(false);
     }
+  };
+
+  const finishAfterDisposition = async () => {
+    if (!sessionId) return;
+    await queryClient.invalidateQueries({
+      queryKey: sessionKeys.detail(sessionId),
+    });
+    await queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
+    await queryClient.invalidateQueries({
+      queryKey: aiNotesKeys.detail(sessionId),
+    });
+    router.replace(`/consultation/${sessionId}/completed`);
   };
 
   if (isLoading || sessionLoading) {
@@ -308,6 +325,13 @@ export default function PreviewScreen() {
           });
           await refetch();
         }}
+      />
+      <SaveConsultationSheet
+        visible={saveSheetOpen}
+        onClose={() => setSaveSheetOpen(false)}
+        session={session}
+        sessionId={sessionId!}
+        onCompleted={finishAfterDisposition}
       />
     </View>
   );

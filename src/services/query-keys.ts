@@ -33,3 +33,10 @@ export const workspaceKeys = {
   all: ["workspaces"] as const,
   list: () => [...workspaceKeys.all, "list"] as const,
 };
+
+export const appointmentKeys = {
+  all: ["appointments"] as const,
+  lists: () => [...appointmentKeys.all, "list"] as const,
+  list: (filters: Record<string, unknown>) =>
+    [...appointmentKeys.lists(), filters] as const,
+};

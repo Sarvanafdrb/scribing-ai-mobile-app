@@ -12,6 +12,7 @@ export default function ConsultationLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="brief" />
       <Stack.Screen name="recording" />
       <Stack.Screen name="uploading" options={{ gestureEnabled: false }} />
       <Stack.Screen name="processing" options={{ gestureEnabled: false }} />
