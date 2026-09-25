@@ -8,6 +8,10 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  textInputNoFocusRingProps,
+  textInputNoFocusRingStyle,
+} from "@/theme/textInput";
 import { colors, radius, spacing, typography } from "@/theme";
 
 interface InputProps extends TextInputProps {
@@ -27,7 +31,6 @@ export function Input({
   style,
   ...props
 }: InputProps) {
-  const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(Boolean(isPassword));
 
   return (
@@ -36,7 +39,6 @@ export function Input({
       <View
         style={[
           styles.container,
-          focused && styles.focused,
           !!error && styles.errorBorder,
         ]}
       >
@@ -44,23 +46,20 @@ export function Input({
           <Ionicons
             name={leftIcon}
             size={20}
-            color={focused ? colors.primary : colors.muted}
+            color={colors.muted}
             style={styles.leftIcon}
           />
         ) : null}
         <TextInput
           {...props}
+          {...textInputNoFocusRingProps}
           secureTextEntry={secure}
-          style={[styles.input, style]}
+          style={[styles.input, textInputNoFocusRingStyle, style]}
           placeholderTextColor={colors.mutedLight}
-          onFocus={(e) => {
-            setFocused(true);
-            props.onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            setFocused(false);
-            props.onBlur?.(e);
-          }}
+          cursorColor={colors.primary}
+          selectionColor={colors.primaryLight}
+          onFocus={props.onFocus}
+          onBlur={props.onBlur}
         />
         {isPassword ? (
           <Pressable onPress={() => setSecure((v) => !v)} hitSlop={8}>
@@ -95,9 +94,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
-  },
-  focused: {
-    borderColor: colors.primary,
   },
   errorBorder: {
     borderColor: colors.danger,

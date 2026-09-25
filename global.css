@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* NativeWind maps base styles to TextInput — disable mustard/yellow focus rings. */
+@layer base {
+  input,
+  textarea,
+  select {
+    outline-width: 0;
+    outline-style: none;
+    box-shadow: none;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline-width: 0;
+    outline-style: none;
+    box-shadow: none;
+  }
+}

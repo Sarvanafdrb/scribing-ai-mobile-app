@@ -2,6 +2,10 @@ import React from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing, typography } from "@/theme";
+import {
+  textInputNoFocusRingProps,
+  textInputNoFocusRingStyle,
+} from "@/theme/textInput";
 
 interface SearchInputProps {
   value: string;
@@ -22,7 +26,10 @@ export function SearchInput({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedLight}
-        style={styles.input}
+        style={[styles.input, textInputNoFocusRingStyle]}
+        {...textInputNoFocusRingProps}
+        cursorColor={colors.primary}
+        selectionColor={colors.primaryLight}
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="while-editing"
