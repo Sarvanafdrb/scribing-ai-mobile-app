@@ -1,5 +1,9 @@
+const path = require("path");
 const os = require("os");
 const { spawnSync, execSync } = require("child_process");
+
+const projectRoot = path.join(__dirname, "..");
+const expoCli = path.join(projectRoot, "node_modules", "expo", "bin", "cli");
 
 function isWindowsPublicWifi() {
   if (process.platform !== "win32") return false;
@@ -45,9 +49,9 @@ console.log("     -> If it FAILS, your Wi-Fi blocks PC access. Use: npm run star
 console.log("  2. Or run scripts/open-firewall.ps1 as Administrator\n");
 
 const result = spawnSync(
-  process.platform === "win32" ? "npx.cmd" : "npx",
-  ["expo", "start", "--offline", "--clear", "--port", "8081"],
-  { stdio: "inherit", env: process.env, shell: process.platform === "win32" },
+  process.execPath,
+  [expoCli, "start", "--offline", "--clear", "--port", "8081"],
+  { stdio: "inherit", env: process.env, cwd: projectRoot, shell: false },
 );
 
 process.exit(result.status ?? 1);

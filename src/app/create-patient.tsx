@@ -1,6 +1,31 @@
-import React, { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { GlassHeader } from "@/components/ui/GlassHeader";
+import { Input } from "@/components/ui/Input";
+import { usePatientMutations } from "@/hooks/patients/usePatientMutations";
+import { useSessionMutations } from "@/hooks/sessions/useSessionMutations";
+import { useTenantScope } from "@/hooks/useTenantScope";
+import {
+  optionalPatientAgeSchema,
+  requiredIndianMobileSchema,
+} from "@/lib/validation";
+import { useAuthStore } from "@/store/auth.store";
+import { colors, radius, spacing, typography } from "@/theme";
+import { BLOOD_GROUPS, type PatientGender } from "@/types/patient.types";
+import {
+  getPatientId,
+  INDIAN_MOBILE_LENGTH,
+  PATIENT_AGE_MAX,
+  PATIENT_AGE_MIN,
+  sanitizeIndianPhoneInput,
+  sanitizePatientAgeInput,
+} from "@/utils/patient.utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { router } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,32 +34,15 @@ import {
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { GlassHeader } from "@/components/ui/GlassHeader";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { usePatientMutations } from "@/hooks/patients/usePatientMutations";
-import { useSessionMutations } from "@/hooks/sessions/useSessionMutations";
-import { useTenantScope } from "@/hooks/useTenantScope";
-import { useAuthStore } from "@/store/auth.store";
-import { BLOOD_GROUPS, type PatientGender } from "@/types/patient.types";
-import { getPatientId } from "@/utils/patient.utils";
-import { colors, radius, spacing, typography } from "@/theme";
 
 const createPatientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50),
   lastName: z.string().trim().min(1, "Last name is required").max(50),
   gender: z.enum(["male", "female", "other", "unknown"]),
-  phoneNumber: z
-    .string()
-    .trim()
-    .min(8, "Enter a valid phone number")
-    .max(20),
-  age: z.string().optional(),
+  phoneNumber: requiredIndianMobileSchema,
+  age: optionalPatientAgeSchema,
   email: z
     .string()
     .trim()
@@ -64,6 +72,33 @@ export default function CreatePatientScreen() {
   const { createPatient } = usePatientMutations();
   const { createSession } = useSessionMutations();
   const [startConsult, setStartConsult] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 120);
+  }, []);
 
   const {
     control,
@@ -92,7 +127,10 @@ export default function CreatePatientScreen() {
 
   const onSubmit = async (data: CreatePatientForm) => {
     if (!organizationId) {
-      Alert.alert("No workspace", "Select a workspace before creating patients.");
+      Alert.alert(
+        "No workspace",
+        "Select a workspace before creating patients.",
+      );
       return;
     }
 
@@ -106,7 +144,8 @@ export default function CreatePatientScreen() {
         age: Number.isFinite(ageValue) ? ageValue : undefined,
         email: data.email?.trim() || undefined,
         address: data.address?.trim() || undefined,
-        bloodGroup: (data.bloodGroup as (typeof BLOOD_GROUPS)[number]) || undefined,
+        bloodGroup:
+          (data.bloodGroup as (typeof BLOOD_GROUPS)[number]) || undefined,
         allergies: data.allergies
           ? data.allergies
               .split(",")
@@ -129,7 +168,9 @@ export default function CreatePatientScreen() {
         });
         const sessionId = String(session._id || session.id || "");
         if (sessionId) {
-          router.replace(`/consultation/${sessionId}` as never);
+          router.replace(
+            `/consultation/${sessionId}/brief` as never,
+          );
           return;
         }
       }
@@ -152,14 +193,21 @@ export default function CreatePatientScreen() {
       <GlassHeader title="New Patient" showBack />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 8 : 0}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={[
             styles.content,
-            { paddingBottom: insets.bottom + spacing["3xl"] },
+            {
+              paddingBottom:
+                insets.bottom + spacing["3xl"] + keyboardHeight + spacing.xl,
+            },
           ]}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          showsVerticalScrollIndicator={false}
         >
           <Text style={styles.subtitle}>
             Register a patient. Patient code is generated automatically.
@@ -223,9 +271,14 @@ export default function CreatePatientScreen() {
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
                 label="Phone"
-                keyboardType="phone-pad"
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={INDIAN_MOBILE_LENGTH}
+                placeholder="Enter mobile number"
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) =>
+                  onChange(sanitizeIndianPhoneInput(text))
+                }
                 onBlur={onBlur}
                 error={errors.phoneNumber?.message}
                 editable={!loading}
@@ -239,9 +292,13 @@ export default function CreatePatientScreen() {
               <Input
                 label="Age (optional)"
                 keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={3}
+                placeholder={`${PATIENT_AGE_MIN}-${PATIENT_AGE_MAX}`}
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) => onChange(sanitizePatientAgeInput(text))}
                 onBlur={onBlur}
+                error={errors.age?.message}
                 editable={!loading}
               />
             )}
@@ -267,16 +324,17 @@ export default function CreatePatientScreen() {
             name="address"
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
-                label="Address (optional)"
+                label="Address"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                onFocus={scrollToBottom}
                 editable={!loading}
               />
             )}
           />
 
-          <Text style={styles.label}>Blood group (optional)</Text>
+          <Text style={styles.label}>Blood group</Text>
           <View style={styles.chipRow}>
             {BLOOD_GROUPS.map((group) => (
               <Pressable
@@ -310,6 +368,7 @@ export default function CreatePatientScreen() {
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                onFocus={scrollToBottom}
                 editable={!loading}
                 placeholder="Penicillin, Dust"
               />
@@ -348,7 +407,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     gap: spacing.md,
   },
-  subtitle: { ...typography.body, color: colors.muted, marginBottom: spacing.sm },
+  subtitle: {
+    ...typography.body,
+    color: colors.muted,
+    marginBottom: spacing.sm,
+  },
   label: {
     ...typography.caption,
     color: colors.muted,

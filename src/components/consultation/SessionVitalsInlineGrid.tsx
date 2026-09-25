@@ -169,7 +169,7 @@ export function SessionVitalsInlineGrid({
   >({});
   const inputRef = useRef<TextInput>(null);
   const draftRef = useRef("");
-  const savingRef = useRef(false);
+  const editingFieldRef = useRef<VitalFieldKey | null>(null);
 
   const displayVitals = useMemo(
     () => normalizeVitals(mergeVitals(vitals, optimisticVitals)),
@@ -182,6 +182,7 @@ export function SessionVitalsInlineGrid({
   };
 
   const stopEditing = () => {
+    editingFieldRef.current = null;
     setEditingField(null);
     draftRef.current = "";
     setDraftValue("");
@@ -190,18 +191,18 @@ export function SessionVitalsInlineGrid({
   const commitField = (
     field: VitalFieldKey,
     rawValue: string,
-    options?: { showErrorAlert?: boolean },
+    options?: { showErrorAlert?: boolean; keepEditorOpen?: boolean },
   ) => {
     const trimmed = rawValue.trim();
     if (!trimmed) {
-      stopEditing();
+      if (!options?.keepEditorOpen) stopEditing();
       return;
     }
 
     const patch = tryBuildVitalsPatch(field, trimmed);
     if (!patch) {
       setFieldDrafts((prev) => ({ ...prev, [field]: trimmed }));
-      stopEditing();
+      if (!options?.keepEditorOpen) stopEditing();
       if (options?.showErrorAlert) {
         try {
           buildVitalsPatch(field, trimmed);
@@ -218,15 +219,18 @@ export function SessionVitalsInlineGrid({
   };
 
   const startEditing = (field: VitalFieldKey) => {
-    if (!editable || savingRef.current) return;
+    if (!editable) return;
 
-    if (editingField && editingField !== field) {
-      commitField(editingField, draftRef.current);
+    if (editingFieldRef.current && editingFieldRef.current !== field) {
+      commitField(editingFieldRef.current, draftRef.current, {
+        keepEditorOpen: true,
+      });
     }
 
     const existing = fieldDrafts[field] ?? "";
     draftRef.current = existing;
     setDraftValue(existing);
+    editingFieldRef.current = field;
     setEditingField(field);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -236,31 +240,30 @@ export function SessionVitalsInlineGrid({
     trimmed: string,
     patch: SessionVitals,
   ) => {
-    if (!editable || savingRef.current) return;
+    if (!editable) return;
 
     const previousOptimistic = optimisticVitals;
     setOptimisticVitals((prev) => mergeVitals(prev, patch));
-    stopEditing();
     setFieldDrafts((prev) => {
       const next = { ...prev };
       delete next[field];
       return next;
     });
 
-    savingRef.current = true;
     try {
       await updateSession.mutateAsync({
         id: sessionId,
         data: { vitals: patch },
       });
+      if (editingFieldRef.current === field) {
+        stopEditing();
+      }
     } catch (error) {
       setOptimisticVitals(previousOptimistic);
       const message =
         error instanceof Error ? error.message : "Could not save vitals.";
       Alert.alert("Vitals", message);
       setFieldDrafts((prev) => ({ ...prev, [field]: trimmed }));
-    } finally {
-      savingRef.current = false;
     }
   };
 
@@ -351,7 +354,7 @@ export function SessionVitalsInlineGrid({
               </View>
             ) : fieldDrafts[field.key] ? (
               <Pressable
-                disabled={!editable || savingRef.current}
+                disabled={!editable}
                 onPress={() => startEditing(field.key)}
                 hitSlop={6}
                 style={styles.valueLine}
@@ -360,7 +363,7 @@ export function SessionVitalsInlineGrid({
               </Pressable>
             ) : (
               <Pressable
-                disabled={!editable || savingRef.current}
+                disabled={!editable}
                 onPress={() => startEditing(field.key)}
                 hitSlop={6}
                 style={styles.valueLine}

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Audio,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder as useExpoAudioRecorder,
+} from "expo-audio";
+import type { AudioRecorder } from "expo-audio";
 
 export type VoiceEditRecorderState =
   | "idle"
@@ -11,13 +13,28 @@ export type VoiceEditRecorderState =
   | "stopped"
   | "processing";
 
+const safeStopRecorder = async (recorder: AudioRecorder) => {
+  try {
+    await recorder.stop();
+    return recorder.uri;
+  } catch {
+    return null;
+  }
+};
+
 export const useVoiceEditRecorder = () => {
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recorder = useExpoAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stateRef = useRef<VoiceEditRecorderState>("idle");
   const [state, setState] = useState<VoiceEditRecorderState>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [uri, setUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const setRecorderState = (next: VoiceEditRecorderState) => {
+    stateRef.current = next;
+    setState(next);
+  };
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -26,85 +43,71 @@ export const useVoiceEditRecorder = () => {
     }
   };
 
-  const reset = useCallback(async () => {
-    clearTimer();
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch {
-        // ignore cleanup errors
-      }
-      recordingRef.current = null;
-    }
-    setState("idle");
-    setElapsedSeconds(0);
-    setUri(null);
-    setError(null);
-  }, []);
-
   useEffect(() => {
     return () => {
       clearTimer();
-      recordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
     };
   }, []);
 
+  const reset = useCallback(async () => {
+    clearTimer();
+    if (stateRef.current === "recording") {
+      await safeStopRecorder(recorder);
+    }
+    setRecorderState("idle");
+    setElapsedSeconds(0);
+    setUri(null);
+    setError(null);
+  }, [recorder]);
+
   const start = useCallback(async () => {
     setError(null);
-    const permission = await Audio.requestPermissionsAsync();
+    const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) {
       throw new Error("Microphone permission is required.");
     }
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+      interruptionMode: "doNotMix",
+      shouldPlayInBackground: false,
     });
 
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY,
-    );
-    recordingRef.current = recording;
+    await recorder.prepareToRecordAsync();
+    recorder.record();
     setUri(null);
     setElapsedSeconds(0);
-    setState("recording");
+    setRecorderState("recording");
     clearTimer();
     timerRef.current = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
     }, 1000);
-  }, []);
+  }, [recorder]);
 
   const stop = useCallback(async () => {
-    if (!recordingRef.current) return null;
+    if (stateRef.current !== "recording") {
+      return null;
+    }
     clearTimer();
-    await recordingRef.current.stopAndUnloadAsync();
-    const recordingUri = recordingRef.current.getURI();
-    recordingRef.current = null;
+    const recordingUri = await safeStopRecorder(recorder);
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      interruptionMode: "doNotMix",
+      shouldPlayInBackground: false,
     });
 
     setUri(recordingUri);
-    setState("stopped");
+    setRecorderState("stopped");
     return {
       uri: recordingUri,
       duration: elapsedSeconds,
       fileName: `voice-edit-${Date.now()}.m4a`,
       mimeType: "audio/m4a",
     };
-  }, [elapsedSeconds]);
+  }, [elapsedSeconds, recorder]);
 
   return {
     state,
@@ -112,7 +115,7 @@ export const useVoiceEditRecorder = () => {
     uri,
     error,
     setError,
-    setState,
+    setState: setRecorderState,
     start,
     stop,
     reset,

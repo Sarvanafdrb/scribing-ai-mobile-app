@@ -127,6 +127,7 @@ export default function PatientDetailsScreen() {
           .join(" · ")}
       />
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.content,
           { paddingBottom: insets.bottom + 160 },

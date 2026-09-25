@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,17 +31,60 @@ export default function AiNotesScreen() {
   const { aiNotes, isLoading, isError, refetch, generate, update, isGenerating } =
     useAiNotes(sessionId);
   const [draft, setDraft] = useState<AiNotes | null>(null);
+  const [highlightMedIndex, setHighlightMedIndex] = useState<number | null>(
+    null,
+  );
+  const scrollRef = useRef<ScrollView>(null);
+  const medLayoutRef = useRef<
+    Record<number, { top: number; instructionY: number }>
+  >({});
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    if (aiNotes) {
-      setDraft({
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollToMedicationInstructions = useCallback((index: number) => {
+    setTimeout(() => {
+      const layout = medLayoutRef.current[index];
+      if (!layout) {
+        scrollRef.current?.scrollToEnd({ animated: true });
+        return;
+      }
+      const targetY = layout.top + layout.instructionY - 96;
+      scrollRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
+    }, 150);
+  }, []);
+
+  useEffect(() => {
+    if (!aiNotes) return;
+    setDraft((previous) => {
+      const normalized = {
         ...aiNotes,
         medications: normalizeMedicationsForEditing(
           aiNotes.medications,
           aiNotes.plan,
         ),
-      });
-    }
+      };
+      if (!previous) return normalized;
+      if (previous.generatedAt !== aiNotes.generatedAt) return normalized;
+      return previous;
+    });
   }, [aiNotes]);
 
   if (isLoading || isGenerating) {
@@ -67,21 +113,41 @@ export default function AiNotesScreen() {
   };
 
   const saveAndPreview = async () => {
-    const issue = findClinicalCompletenessIssue(draft.medications || []);
+    const medications =
+      normalizeMedicationsForEditing(draft.medications, draft.plan) ||
+      draft.medications ||
+      [];
+    const workingDraft = { ...draft, medications };
+    setDraft(workingDraft);
+
+    const issue = findClinicalCompletenessIssue(medications);
     if (issue) {
-      Alert.alert("Prescription incomplete", issue.message);
+      setHighlightMedIndex(issue.index);
+      const layout = medLayoutRef.current[issue.index];
+      if (layout) {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, layout.top - 24),
+          animated: true,
+        });
+      }
+      Alert.alert(
+        "Prescription incomplete",
+        `${issue.message}\n\nFill M / A / N (dose) and Days for each medicine, then tap Preview again.`,
+      );
       return;
     }
 
+    setHighlightMedIndex(null);
+
     try {
       await update.mutateAsync({
-        summary: draft.summary,
-        subjective: draft.subjective,
-        objective: draft.objective,
-        assessment: draft.assessment,
-        plan: draft.plan,
-        remarks: draft.remarks,
-        medications: draft.medications,
+        summary: workingDraft.summary,
+        subjective: workingDraft.subjective,
+        objective: workingDraft.objective,
+        assessment: workingDraft.assessment,
+        plan: workingDraft.plan,
+        remarks: workingDraft.remarks,
+        medications,
       });
       router.push(`/consultation/${sessionId}/preview`);
     } catch (error) {
@@ -92,15 +158,24 @@ export default function AiNotesScreen() {
     }
   };
 
+  const footerClearance = 120;
+  const scrollBottomPad =
+    insets.bottom + footerClearance + keyboardHeight + spacing.xl;
+
   return (
     <View style={styles.screen}>
       <GlassHeader title="AI Notes" showBack subtitle="Editable clinical notes" />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 120 },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 8 : 0}
       >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[styles.content, { paddingBottom: scrollBottomPad }]}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+        >
         <NoteField
           label="Chief Complaint / HPI (SOAP Subjective)"
           value={draft.subjective || ""}
@@ -132,18 +207,45 @@ export default function AiNotesScreen() {
           <Text style={styles.empty}>No medications generated</Text>
         ) : (
           draft.medications!.map((med, index) => (
-            <MedicationEditor
+            <View
               key={`${med.medicine}-${index}`}
-              medication={med}
-              onChange={(next) => {
-                const medications = [...(draft.medications || [])];
-                medications[index] = next;
-                setDraft({ ...draft, medications });
+              onLayout={(event) => {
+                const prev = medLayoutRef.current[index] || {
+                  top: 0,
+                  instructionY: 0,
+                };
+                medLayoutRef.current[index] = {
+                  ...prev,
+                  top: event.nativeEvent.layout.y,
+                };
               }}
-            />
+            >
+              <MedicationEditor
+                medication={med}
+                highlighted={highlightMedIndex === index}
+                onInstructionsFocus={() => scrollToMedicationInstructions(index)}
+                onInstructionsLayout={(instructionY) => {
+                  const prev = medLayoutRef.current[index] || {
+                    top: 0,
+                    instructionY: 0,
+                  };
+                  medLayoutRef.current[index] = {
+                    ...prev,
+                    instructionY,
+                  };
+                }}
+                onChange={(next) => {
+                  setHighlightMedIndex(null);
+                  const medications = [...(draft.medications || [])];
+                  medications[index] = next;
+                  setDraft({ ...draft, medications });
+                }}
+              />
+            </View>
           ))
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <View style={styles.footerRow}>
@@ -193,13 +295,22 @@ function NoteField({
 
 function MedicationEditor({
   medication,
+  highlighted,
+  onInstructionsFocus,
+  onInstructionsLayout,
   onChange,
 }: {
   medication: AiNotesMedication;
+  highlighted?: boolean;
+  onInstructionsFocus?: () => void;
+  onInstructionsLayout?: (yWithinCard: number) => void;
   onChange: (med: AiNotesMedication) => void;
 }) {
   return (
-    <Card style={styles.medCard} elevated={false}>
+    <Card
+      style={[styles.medCard, highlighted ? styles.medCardHighlight : null]}
+      elevated={false}
+    >
       <TextInput
         value={medication.medicine}
         onChangeText={(medicine) => onChange({ ...medication, medicine })}
@@ -234,21 +345,31 @@ function MedicationEditor({
           </View>
         ))}
       </View>
-      <TextInput
-        value={medication.instructions || ""}
-        onChangeText={(instructions) =>
-          onChange({ ...medication, instructions })
-        }
-        style={styles.medInstructions}
-        placeholder="Instructions"
-        placeholderTextColor={colors.mutedLight}
-      />
+      <View
+        onLayout={(event) => {
+          onInstructionsLayout?.(event.nativeEvent.layout.y);
+        }}
+      >
+        <TextInput
+          value={medication.instructions || ""}
+          onChangeText={(instructions) =>
+            onChange({ ...medication, instructions })
+          }
+          onFocus={onInstructionsFocus}
+          multiline
+          style={styles.medInstructions}
+          placeholder="Instructions"
+          placeholderTextColor={colors.mutedLight}
+          textAlignVertical="top"
+        />
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   content: { padding: spacing.xl, gap: spacing.md },
   center: { flex: 1, justifyContent: "center", padding: spacing.xl },
   sectionTitle: {
@@ -274,6 +395,10 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   medCard: { gap: spacing.sm, marginBottom: spacing.sm },
+  medCardHighlight: {
+    borderWidth: 2,
+    borderColor: colors.warning,
+  },
   medName: {
     ...typography.bodyMedium,
     color: colors.foreground,
@@ -310,6 +435,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.sm,
     padding: spacing.sm,
+    minHeight: 72,
   },
   footer: {
     position: "absolute",

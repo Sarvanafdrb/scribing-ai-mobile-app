@@ -1,13 +1,35 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
+import { Platform, StyleSheet } from "react-native";
 import { Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/store/auth.store";
 import { useAuthValidation } from "@/hooks/useAuthValidation";
 import { useWorkspaceGuard } from "@/hooks/useWorkspaceGuard";
+import { TAB_BAR_CONTENT_HEIGHT } from "@/constants/layout";
 import { colors } from "@/theme";
 import { LoadingScreen } from "@/components/ui/EmptyState";
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const tabBarStyle = useMemo(() => {
+    const bottomPad = Math.max(
+      insets.bottom,
+      Platform.OS === "android" ? 12 : 8,
+    );
+    return {
+      backgroundColor: colors.white,
+      borderTopColor: colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      height: TAB_BAR_CONTENT_HEIGHT + bottomPad,
+      paddingTop: 8,
+      paddingBottom: bottomPad,
+      ...(Platform.OS === "android"
+        ? { elevation: 16, zIndex: 10 }
+        : {}),
+    };
+  }, [insets.bottom]);
+
   const token = useAuthStore((s) => s.token);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const { isValidating } = useAuthValidation();
@@ -47,14 +69,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedLight,
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopColor: colors.border,
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 8,
-        },
+        tabBarInactiveTintColor: colors.muted,
+        tabBarStyle,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",

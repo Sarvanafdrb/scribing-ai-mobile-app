@@ -31,7 +31,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.INTERNET"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",
@@ -50,6 +51,12 @@
       ],
       [
         "expo-av",
+        {
+          "microphonePermission": "Allow Scribing AI to access your microphone for consultation recording."
+        }
+      ],
+      [
+        "expo-audio",
         {
           "microphonePermission": "Allow Scribing AI to access your microphone for consultation recording."
         }

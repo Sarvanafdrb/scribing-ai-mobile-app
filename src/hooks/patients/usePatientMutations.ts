@@ -10,7 +10,7 @@ import type {
 const invalidateDoctorWorkspaceQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
 ) => {
-  queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+  queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
   queryClient.invalidateQueries({
     predicate: (query) =>
       Array.isArray(query.queryKey) && query.queryKey.includes("doctor-queue"),

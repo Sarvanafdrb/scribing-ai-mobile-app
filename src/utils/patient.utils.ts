@@ -31,6 +31,32 @@ export const normalizeIndianPhoneNumber = (phone: string): string =>
 export const isValidIndianPhoneNumber = (phone: string): boolean =>
   INDIAN_MOBILE_REGEX.test(normalizeIndianPhoneNumber(phone));
 
+export const PATIENT_AGE_MIN = 1;
+export const PATIENT_AGE_MAX = 120;
+
+/** Digits only; no 0 / 00 / 000; caps at 120 while typing. */
+export const sanitizePatientAgeInput = (value: string): string => {
+  let digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+
+  digits = digits.replace(/^0+/, "");
+  if (!digits) return "";
+
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed)) return "";
+  if (parsed > PATIENT_AGE_MAX) return String(PATIENT_AGE_MAX);
+
+  return digits.slice(0, String(PATIENT_AGE_MAX).length);
+};
+
+export const isValidPatientAge = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  if (!/^\d+$/.test(trimmed)) return false;
+  const age = Number(trimmed);
+  return age >= PATIENT_AGE_MIN && age <= PATIENT_AGE_MAX;
+};
+
 export const calculateAgeFromDateOfBirth = (
   dateOfBirth?: string | null,
 ): number | null => {

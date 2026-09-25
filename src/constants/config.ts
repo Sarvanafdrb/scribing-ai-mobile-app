@@ -1,16 +1,34 @@
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
+const extra = Constants.expoConfig?.extra as
+  | {
+      apiUrl?: string;
+      uploadsBaseUrl?: string;
+      appName?: string;
+    }
+  | undefined;
+
+const cleanEnv = (value?: string | null) =>
+  value?.replace(/\r/g, "").trim() || "";
+
 export const APP_NAME =
-  process.env.EXPO_PUBLIC_APP_NAME || "Scribing AI";
+  cleanEnv(extra?.appName) ||
+  cleanEnv(process.env.EXPO_PUBLIC_APP_NAME) ||
+  "Scribing AI";
 
 const DEFAULT_API_URL = "http://localhost:5000/api";
 const DEFAULT_UPLOADS_URL = "http://localhost:5000";
 const LAN_HOST_RE = /^https?:\/\/192\.168\.\d+\.\d+(?::\d+)?/i;
 
 const configuredApiUrl =
-  process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_URL;
+  cleanEnv(extra?.apiUrl) ||
+  cleanEnv(process.env.EXPO_PUBLIC_API_URL) ||
+  DEFAULT_API_URL;
 const configuredUploadsUrl =
-  process.env.EXPO_PUBLIC_UPLOADS_BASE_URL?.trim() || DEFAULT_UPLOADS_URL;
+  cleanEnv(extra?.uploadsBaseUrl) ||
+  cleanEnv(process.env.EXPO_PUBLIC_UPLOADS_BASE_URL) ||
+  DEFAULT_UPLOADS_URL;
 
 /** Map a LAN base URL to localhost while preserving path/port suffixes. */
 const toLocalhostUrl = (url: string, fallback: string) => {

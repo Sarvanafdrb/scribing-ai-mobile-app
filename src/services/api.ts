@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Platform } from "react-native";
 import { router } from "expo-router";
 import { API_URL } from "@/constants/config";
 import { useAuthStore } from "@/store/auth.store";
@@ -32,6 +33,7 @@ export const api = axios.create({
   },
   withCredentials: false,
   timeout: 60000,
+  ...(Platform.OS !== "web" ? { adapter: "fetch" } : {}),
 });
 
 api.interceptors.request.use(
@@ -60,7 +62,10 @@ api.interceptors.request.use(
     }
 
     if (typeof FormData !== "undefined" && config.data instanceof FormData) {
-      delete config.headers["Content-Type"];
+      if (config.headers) {
+        delete config.headers["Content-Type"];
+        delete config.headers["content-type"];
+      }
     }
 
     return config;

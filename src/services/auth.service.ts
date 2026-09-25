@@ -1,5 +1,6 @@
 import { api } from "@/services/api";
 import { AuthOrganization, AuthRole, AuthUser } from "@/types/auth.types";
+import { uploadAuthImageMultipart } from "@/services/authImageUpload.service";
 
 export interface LoginData {
   email: string;
@@ -50,31 +51,27 @@ export const authService = {
     return response.data;
   },
 
-  uploadProfilePicture: async (uri: string, fileName = "profile.jpg") => {
-    const formData = new FormData();
-    formData.append("profilePicture", {
-      uri,
-      name: fileName,
-      type: "image/jpeg",
-    } as unknown as Blob);
-    const response = await api.post("/auth/me/profile-picture", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return response.data;
-  },
+  uploadProfilePicture: async (
+    uri: string,
+    fileName = "profile.jpg",
+    mimeType?: string | null,
+  ) =>
+    uploadAuthImageMultipart("/auth/me/profile-picture", "profilePicture", uri, {
+      fileName,
+      mimeType,
+      defaultFileName: "profile.jpg",
+    }),
 
-  uploadSignature: async (uri: string, fileName = "signature.png") => {
-    const formData = new FormData();
-    formData.append("signature", {
-      uri,
-      name: fileName,
-      type: "image/png",
-    } as unknown as Blob);
-    const response = await api.post("/auth/me/signature", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return response.data;
-  },
+  uploadSignature: async (
+    uri: string,
+    fileName = "signature.png",
+    mimeType?: string | null,
+  ) =>
+    uploadAuthImageMultipart("/auth/me/signature", "signature", uri, {
+      fileName,
+      mimeType,
+      defaultFileName: "signature.png",
+    }),
 
   forgotPassword: (email: string) =>
     api.post("/auth/forgot-password", { email }),

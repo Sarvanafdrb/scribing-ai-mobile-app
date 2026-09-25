@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, StyleSheet, ViewStyle, StyleProp } from "react-native";
+import { Platform, Pressable, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TAB_BAR_CONTENT_HEIGHT } from "@/constants/layout";
 import { colors, shadows } from "@/theme";
 
 interface FabProps {
@@ -16,6 +17,10 @@ export function FloatingActionButton({
   style,
 }: FabProps) {
   const insets = useSafeAreaInsets();
+  const bottomOffset =
+    Math.max(insets.bottom, Platform.OS === "android" ? 12 : 8) +
+    TAB_BAR_CONTENT_HEIGHT +
+    12;
 
   return (
     <Pressable
@@ -23,7 +28,7 @@ export function FloatingActionButton({
       style={[
         styles.fab,
         shadows.fab,
-        { bottom: Math.max(insets.bottom, 16) + 64 },
+        { bottom: bottomOffset },
         style,
       ]}
       accessibilityRole="button"

@@ -42,10 +42,6 @@ import {
   getDoctorWorkspacePath,
 } from "@/utils/doctor-navigation.utils";
 import { getGreeting } from "@/utils/date.utils";
-import {
-  canStartRecording,
-  isConsultationCompleted,
-} from "@/utils/session-status.utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -77,7 +73,6 @@ export function DoctorConsultationsView() {
     isError,
     refetch,
     isRefetching,
-    sessions,
   } = useDoctorQueue();
   const { checkInAppointment } = useAppointmentMutations();
   const [openingKey, setOpeningKey] = useState<string | null>(null);
@@ -110,23 +105,23 @@ export function DoctorConsultationsView() {
   );
 
   const stats = useMemo(() => {
-    const completed = sessions.filter((s) =>
-      isConsultationCompleted(s.status),
-    ).length;
-    const pending = sessions.filter(
-      (s) =>
-        canStartRecording(s.status) && !isConsultationCompleted(s.status),
-    ).length;
+    const queueCount = items.length + scheduledToday.length;
     const seenCount = items.filter((item) =>
       SEEN_STATUSES.has(item.session?.status || ""),
     ).length;
+    /** Still recording / not yet at notes review — excludes ready_for_review (counts as Seen). */
+    const pending = items.filter((item) => {
+      const status = item.session?.status || "";
+      if (status === "completed") return false;
+      if (SEEN_STATUSES.has(status)) return false;
+      return true;
+    }).length;
     return {
-      queueCount: items.length + scheduledToday.length,
+      queueCount,
       pending,
-      completed,
       seenCount,
     };
-  }, [items, scheduledToday.length, sessions]);
+  }, [items, scheduledToday.length]);
 
   const clinicDateLabel = useMemo(
     () =>
@@ -256,7 +251,10 @@ export function DoctorConsultationsView() {
 
         <View style={styles.statsRow}>
           <StatCard label="In clinic" value={String(stats.queueCount)} />
-          <StatCard label="Pending" value={String(stats.pending)} />
+          <StatCard
+            label="In progress"
+            value={String(stats.pending)}
+          />
           <StatCard label="Seen" value={String(stats.seenCount)} />
         </View>
 

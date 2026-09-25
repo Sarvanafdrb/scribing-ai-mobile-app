@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
-  Audio,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder as useExpoAudioRecorder,
+} from "expo-audio";
+import type { AudioRecorder } from "expo-audio";
 import { useRecordingStore } from "@/store/recording.store";
 import { recordingService } from "@/services/recording.service";
 
+const safeStopRecorder = async (recorder: AudioRecorder) => {
+  try {
+    await recorder.stop();
+    return recorder.uri;
+  } catch {
+    return null;
+  }
+};
+
 export const useAudioRecorder = (sessionId: string) => {
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recorder = useExpoAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
@@ -46,72 +57,65 @@ export const useAudioRecorder = (sessionId: string) => {
   }, [sessionId, setSessionId]);
 
   const start = useCallback(async () => {
-    const permission = await Audio.requestPermissionsAsync();
+    const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) {
       throw new Error("Microphone permission is required to record.");
     }
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+      interruptionMode: "doNotMix",
+      shouldPlayInBackground: false,
     });
 
     await recordingService.start(sessionId);
 
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY,
-    );
-    recordingRef.current = recording;
+    await recorder.prepareToRecordAsync();
+    recorder.record();
     setUri(null);
     setElapsedSeconds(0);
     setState("recording");
     startTimer();
-  }, [sessionId, setElapsedSeconds, setState, setUri]);
+  }, [recorder, sessionId, setElapsedSeconds, setState, setUri]);
 
   const pause = useCallback(async () => {
-    if (!recordingRef.current || state !== "recording") return;
-    await recordingRef.current.pauseAsync();
+    if (useRecordingStore.getState().state !== "recording") return;
+    recorder.pause();
     clearTimer();
     setState("paused");
-  }, [setState, state]);
+  }, [recorder, setState]);
 
   const resume = useCallback(async () => {
-    if (!recordingRef.current || state !== "paused") return;
-    await recordingRef.current.startAsync();
+    if (useRecordingStore.getState().state !== "paused") return;
+    recorder.record();
     setState("recording");
     startTimer();
-  }, [setState, state]);
+  }, [recorder, setState]);
 
   const stop = useCallback(async () => {
-    if (!recordingRef.current) return null;
+    const snap = useRecordingStore.getState();
+    if (snap.state !== "recording" && snap.state !== "paused") {
+      return snap.uri ? { uri: snap.uri, duration: snap.elapsedSeconds } : null;
+    }
 
     clearTimer();
-    await recordingRef.current.stopAndUnloadAsync();
-    const recordingUri = recordingRef.current.getURI();
-    recordingRef.current = null;
+    const recordingUri = (await safeStopRecorder(recorder)) ?? snap.uri;
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      interruptionMode: "doNotMix",
+      shouldPlayInBackground: false,
     });
 
     setUri(recordingUri);
     setState("stopped");
     return {
       uri: recordingUri,
-      duration: useRecordingStore.getState().elapsedSeconds,
+      duration: snap.elapsedSeconds,
     };
-  }, [setState, setUri]);
+  }, [recorder, setState, setUri]);
 
   return {
     state,

@@ -1,4 +1,23 @@
-import React, { useEffect, useState } from "react";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { GlassHeader } from "@/components/ui/GlassHeader";
+import { Input } from "@/components/ui/Input";
+import { useProfileMutations } from "@/hooks/auth/useProfileMutations";
+import { lastNameSchema, optionalIndianMobileSchema } from "@/lib/validation";
+import { useAuthStore } from "@/store/auth.store";
+import { colors, spacing, typography } from "@/theme";
+import { resolveMediaUrl } from "@/utils/media.utils";
+import {
+  INDIAN_MOBILE_LENGTH,
+  sanitizeIndianPhoneInput,
+} from "@/utils/patient.utils";
+import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -10,34 +29,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import * as ImagePicker from "expo-image-picker";
-import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
-import { GlassHeader } from "@/components/ui/GlassHeader";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Avatar } from "@/components/ui/Avatar";
-import { useAuthStore } from "@/store/auth.store";
-import { useProfileMutations } from "@/hooks/auth/useProfileMutations";
-import { lastNameSchema } from "@/lib/validation";
-import { resolveMediaUrl } from "@/utils/media.utils";
-import { colors, spacing, typography } from "@/theme";
 
 /** Same profile schema as web ProfileForm. */
 const profileSchema = z.object({
   firstName: z.string().trim().min(2, "First name is required"),
   lastName: lastNameSchema,
-  phone: z
-    .string()
-    .optional()
-    .refine(
-      (value) => !value || value.trim() === "" || /^[0-9]{10,15}$/.test(value),
-      "Phone must be 10 to 15 digits",
-    ),
+  phone: optionalIndianMobileSchema,
   qualification: z.string().trim().max(200).optional(),
 });
 
@@ -65,7 +63,7 @@ export default function SettingsScreen() {
     defaultValues: {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
-      phone: user?.phone || "",
+      phone: user?.phone ? sanitizeIndianPhoneInput(user.phone) : "",
       qualification: user?.qualification || "",
     },
   });
@@ -75,7 +73,7 @@ export default function SettingsScreen() {
     reset({
       firstName: user.firstName || "",
       lastName: user.lastName || "",
-      phone: user.phone || "",
+      phone: user.phone ? sanitizeIndianPhoneInput(user.phone) : "",
       qualification: user.qualification || "",
     });
     setPreviewUrl(resolveMediaUrl(user.profilePicture) || "");
@@ -105,13 +103,30 @@ export default function SettingsScreen() {
     const fileName =
       asset.fileName ||
       (purpose === "profile" ? "profile.jpg" : "signature.png");
+    const mimeType = asset.mimeType;
 
-    if (purpose === "profile") {
-      setPreviewUrl(asset.uri);
-      await uploadProfilePicture.mutateAsync({ uri: asset.uri, fileName });
-    } else {
-      setSignaturePreviewUrl(asset.uri);
-      await uploadSignature.mutateAsync({ uri: asset.uri, fileName });
+    try {
+      if (purpose === "profile") {
+        setPreviewUrl(asset.uri);
+        await uploadProfilePicture.mutateAsync({
+          uri: asset.uri,
+          fileName,
+          mimeType,
+        });
+      } else {
+        setSignaturePreviewUrl(asset.uri);
+        await uploadSignature.mutateAsync({
+          uri: asset.uri,
+          fileName,
+          mimeType,
+        });
+      }
+    } catch {
+      if (purpose === "profile") {
+        setPreviewUrl(resolveMediaUrl(user?.profilePicture) || "");
+      } else {
+        setSignaturePreviewUrl(resolveMediaUrl(user?.signature) || "");
+      }
     }
   };
 
@@ -201,7 +216,9 @@ export default function SettingsScreen() {
                   contentFit="contain"
                 />
               ) : (
-                <Text style={styles.sectionHint}>No signature uploaded yet.</Text>
+                <Text style={styles.sectionHint}>
+                  No signature uploaded yet.
+                </Text>
               )}
             </View>
 
@@ -242,10 +259,15 @@ export default function SettingsScreen() {
                 <Input
                   label="Phone Number"
                   value={value || ""}
-                  onChangeText={onChange}
+                  onChangeText={(text) =>
+                    onChange(sanitizeIndianPhoneInput(text))
+                  }
                   onBlur={onBlur}
                   error={errors.phone?.message}
-                  keyboardType="phone-pad"
+                  keyboardType="number-pad"
+                  maxLength={INDIAN_MOBILE_LENGTH}
+                  inputMode="numeric"
+                  placeholder="Enter mobile number"
                   editable={!isSaving}
                 />
               )}
@@ -267,11 +289,7 @@ export default function SettingsScreen() {
               )}
             />
 
-            <Input
-              label="Email Address"
-              value={user.email}
-              editable={false}
-            />
+            <Input label="Email Address" value={user.email} editable={false} />
             <Input
               label="Role"
               value={user.roleName || user.role?.name || "—"}

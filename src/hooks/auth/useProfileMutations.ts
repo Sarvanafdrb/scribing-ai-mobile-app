@@ -40,8 +40,15 @@ export const useProfileMutations = () => {
   });
 
   const uploadProfilePicture = useMutation({
-    mutationFn: ({ uri, fileName }: { uri: string; fileName?: string }) =>
-      authService.uploadProfilePicture(uri, fileName),
+    mutationFn: ({
+      uri,
+      fileName,
+      mimeType,
+    }: {
+      uri: string;
+      fileName?: string;
+      mimeType?: string | null;
+    }) => authService.uploadProfilePicture(uri, fileName, mimeType),
     onSuccess: (response) => {
       const userData = extractUser(response);
       setUser(normalizeAuthUser(userData as Parameters<typeof normalizeAuthUser>[0]));
@@ -49,16 +56,26 @@ export const useProfileMutations = () => {
       Alert.alert("Success", "Profile picture updated successfully");
     },
     onError: (error: unknown) => {
+      const axiosMsg = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
       const message =
-        (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message || "Failed to upload profile picture";
+        axiosMsg ||
+        (error instanceof Error ? error.message : null) ||
+        "Failed to upload profile picture";
       Alert.alert("Upload failed", message);
     },
   });
 
   const uploadSignature = useMutation({
-    mutationFn: ({ uri, fileName }: { uri: string; fileName?: string }) =>
-      authService.uploadSignature(uri, fileName),
+    mutationFn: ({
+      uri,
+      fileName,
+      mimeType,
+    }: {
+      uri: string;
+      fileName?: string;
+      mimeType?: string | null;
+    }) => authService.uploadSignature(uri, fileName, mimeType),
     onSuccess: (response) => {
       const userData = extractUser(response);
       setUser(normalizeAuthUser(userData as Parameters<typeof normalizeAuthUser>[0]));
@@ -66,9 +83,12 @@ export const useProfileMutations = () => {
       Alert.alert("Success", "Signature updated successfully");
     },
     onError: (error: unknown) => {
+      const axiosMsg = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
       const message =
-        (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message || "Failed to upload signature";
+        axiosMsg ||
+        (error instanceof Error ? error.message : null) ||
+        "Failed to upload signature";
       Alert.alert("Upload failed", message);
     },
   });

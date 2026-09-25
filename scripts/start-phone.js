@@ -1,5 +1,8 @@
 const { spawn, execSync } = require("child_process");
-const os = require("os");
+const path = require("path");
+
+const projectRoot = path.join(__dirname, "..");
+const expoCli = path.join(projectRoot, "node_modules", "expo", "bin", "cli");
 
 function isWindowsPublicWifi() {
   if (process.platform !== "win32") return false;
@@ -16,26 +19,36 @@ function isWindowsPublicWifi() {
 
 const publicWifi = isWindowsPublicWifi();
 
-console.log("\n=== Scribing AI — Expo for physical phone ===\n");
+console.log("\n=== Scribing AI — Expo for physical phone (tunnel) ===\n");
 
 if (publicWifi) {
-  console.log("WARNING: Your Wi-Fi is PUBLIC. LAN / QR with 192.168.x.x will NOT work.");
-  console.log("Using TUNNEL mode automatically.\n");
-  console.log("After server starts:");
-  console.log("  1. Open Expo Go (SDK 57 APK, not Play Store)");
-  console.log("  2. Tap 'Enter URL manually' (do NOT use Scan if it fails)");
-  console.log("  3. Paste the exp://....exp.direct URL printed below\n");
+  console.log("Wi-Fi is PUBLIC — tunnel is required for Expo Go.\n");
 } else {
-  console.log("Wi-Fi looks Private. Tunnel mode still used for reliability.\n");
+  console.log("Wi-Fi is Private. Using tunnel for Expo Go (reliable on Oppo/Android).\n");
+  console.log("Login API uses your PC LAN IP via sync:lan (.env).\n");
 }
 
-console.log("Starting tunnel...\n");
+try {
+  execSync("node ./scripts/update-lan-env.js --quiet", {
+    stdio: "inherit",
+    cwd: projectRoot,
+  });
+} catch {
+  console.warn("Could not update .env LAN IP — run: npm run sync:lan\n");
+}
 
-const child = spawn(
-  process.platform === "win32" ? "npx.cmd" : "npx",
-  ["expo", "start", "--tunnel", "--clear", "--port", "8081"],
-  { stdio: ["inherit", "pipe", "pipe"], env: process.env, shell: process.platform === "win32" },
-);
+console.log("Starting Expo (tunnel). Wait for 'Tunnel ready', then use the exp.direct URL below.\n");
+console.log("If you still see 'Starting LAN' or 'Networking has been disabled', stop Metro (Ctrl+C) and run npm start again.\n");
+
+const expoArgs = ["start", "--tunnel", "--clear", "--port", "8081"];
+
+const child = spawn(process.execPath, [expoCli, ...expoArgs], {
+  cwd: projectRoot,
+  stdio: ["inherit", "pipe", "pipe"],
+  env: process.env,
+  shell: false,
+  windowsHide: true,
+});
 
 let printedUrl = false;
 
@@ -48,15 +61,16 @@ function printTunnelUrl() {
     res.on("end", () => {
       try {
         const tunnels = JSON.parse(data).tunnels ?? [];
-        const tunnel = tunnels.find((t) => t.proto === "http" && t.public_url?.includes("exp.direct"));
+        const tunnel = tunnels.find(
+          (t) => t.proto === "http" && t.public_url?.includes("exp.direct"),
+        );
         if (tunnel?.public_url) {
           const host = tunnel.public_url.replace(/^https?:\/\//, "");
           printedUrl = true;
           console.log("\n╔══════════════════════════════════════════════════════╗");
-          console.log("║  COPY THIS INTO EXPO GO → Enter URL manually         ║");
+          console.log("║  OPPO / Expo Go: Enter URL manually (paste below)   ║");
           console.log(`║  exp://${host}`);
-          console.log("╚══════════════════════════════════════════════════════╝");
-          console.log("\nDo NOT use exp://192.168.x.x — that fails on Public Wi-Fi.\n");
+          console.log("╚══════════════════════════════════════════════════════╝\n");
         }
       } catch {
         /* ngrok not ready */
@@ -73,8 +87,15 @@ child.stdout.on("data", (buf) => {
   if (text.includes("Tunnel ready")) {
     setTimeout(printTunnelUrl, 2000);
     setTimeout(printTunnelUrl, 5000);
+    setTimeout(printTunnelUrl, 10000);
   }
 });
 
 child.stderr.on("data", (buf) => process.stderr.write(buf));
+
+child.on("error", (err) => {
+  console.error("Failed to start Expo:", err.message);
+  process.exit(1);
+});
+
 child.on("close", (code) => process.exit(code ?? 1));

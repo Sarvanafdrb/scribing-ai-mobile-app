@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Audio } from "expo-av";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing, typography } from "@/theme";
 import { formatDuration } from "@/utils/date.utils";
@@ -11,58 +11,33 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ uri }: AudioPlayerProps) {
-  const [sound, setSound] = React.useState<Audio.Sound | null>(null);
-  const [playing, setPlaying] = React.useState(false);
-  const [position, setPosition] = React.useState(0);
-  const [duration, setDuration] = React.useState(0);
+  const player = useAudioPlayer(uri ?? null);
+  const status = useAudioPlayerStatus(player);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      if (!uri) return;
-      const { sound: nextSound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: false },
-        (status) => {
-          if (!status.isLoaded || !mounted) return;
-          setPosition(status.positionMillis / 1000);
-          setDuration((status.durationMillis || 0) / 1000);
-          setPlaying(status.isPlaying);
-        },
-      );
-      if (mounted) setSound(nextSound);
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-      sound?.unloadAsync();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uri]);
-
-  const toggle = async () => {
-    if (!sound) return;
-    const status = await sound.getStatusAsync();
-    if (!status.isLoaded) return;
-    if (status.isPlaying) {
-      await sound.pauseAsync();
+  const toggle = () => {
+    if (!uri || !status.isLoaded) return;
+    if (status.playing) {
+      player.pause();
     } else {
-      await sound.playAsync();
+      player.play();
     }
   };
 
   if (!uri) return null;
 
+  const position = status.currentTime || 0;
+  const duration = status.duration || 0;
   const progress = duration > 0 ? position / duration : 0;
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={toggle} style={styles.playBtn}>
+      <Pressable
+        onPress={toggle}
+        style={styles.playBtn}
+        disabled={!status.isLoaded && !status.isBuffering}
+      >
         <Ionicons
-          name={playing ? "pause" : "play"}
+          name={status.playing ? "pause" : "play"}
           size={20}
           color={colors.white}
         />
@@ -72,6 +47,11 @@ export function AudioPlayer({ uri }: AudioPlayerProps) {
         <Text style={styles.time}>
           {formatDuration(position)} / {formatDuration(duration)}
         </Text>
+        {status.error ? (
+          <Text style={styles.error} numberOfLines={2}>
+            {status.error}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -101,5 +81,9 @@ const styles = StyleSheet.create({
   time: {
     ...typography.caption,
     color: colors.muted,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.danger,
   },
 });

@@ -8,7 +8,11 @@ export const useSessionMutations = () => {
 
   const createSession = useMutation({
     mutationFn: (data: CreateSessionData) => sessionService.create(data),
-    onSuccess: () => {
+    onSuccess: (session) => {
+      const id = String(session._id || session.id || "");
+      if (id) {
+        queryClient.setQueryData(sessionKeys.detail(id), session);
+      }
       queryClient.invalidateQueries({ queryKey: sessionKeys.lists() });
       queryClient.invalidateQueries({
         predicate: (query) =>

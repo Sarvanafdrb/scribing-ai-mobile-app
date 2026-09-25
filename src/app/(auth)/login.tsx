@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -28,7 +28,8 @@ import {
   loginSchema,
   type LoginFormData,
 } from "@/features/auth/login.schema";
-import { APP_NAME } from "@/constants/config";
+import { API_URL, APP_NAME } from "@/constants/config";
+import { pingApiHealth } from "@/utils/pingApi";
 import { colors, spacing, typography } from "@/theme";
 
 export default function LoginScreen() {
@@ -36,6 +37,29 @@ export default function LoginScreen() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const { selectWorkspace } = useWorkspaceSelection();
   const [loading, setLoading] = useState(false);
+  const [apiPing, setApiPing] = useState<"idle" | "checking" | "ok" | "fail">(
+    "idle",
+  );
+  const [pingDetail, setPingDetail] = useState("");
+
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    let cancelled = false;
+    setApiPing("checking");
+
+    void pingApiHealth().then((result) => {
+      if (cancelled) return;
+      setApiPing(result.ok ? "ok" : "fail");
+      setPingDetail(
+        result.ok ? result.detail : `${result.url} — ${result.detail}`,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     control,
@@ -170,6 +194,33 @@ export default function LoginScreen() {
             onPress={handleSubmit(onSubmit)}
             size="lg"
           />
+
+          {__DEV__ ? (
+            <View style={styles.devBlock}>
+              <Text style={styles.devApi} selectable>
+                API: {API_URL}
+              </Text>
+              <Text
+                style={[
+                  styles.devPing,
+                  apiPing === "ok" && styles.devPingOk,
+                  apiPing === "fail" && styles.devPingFail,
+                ]}
+              >
+                {apiPing === "idle" || apiPing === "checking"
+                  ? "Testing API from app…"
+                  : apiPing === "ok"
+                    ? `App can reach API (${pingDetail})`
+                    : `App cannot reach API — ${pingDetail}`}
+              </Text>
+              {apiPing === "fail" && API_URL.includes("localhost") ? (
+                <Text style={styles.devHint}>
+                  localhost on a phone points to the phone, not your PC. Stop
+                  Expo, run npm start, reload the app.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -233,5 +284,30 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
     fontWeight: "700",
+  },
+  devApi: {
+    ...typography.caption,
+    color: colors.muted,
+    fontSize: 11,
+  },
+  devBlock: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  devPing: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.muted,
+  },
+  devPingOk: {
+    color: "#15803d",
+  },
+  devPingFail: {
+    color: colors.danger,
+  },
+  devHint: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.danger,
   },
 });

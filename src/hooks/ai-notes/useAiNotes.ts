@@ -10,7 +10,7 @@ import { isTranscriptAvailable, isReviewReady } from "@/utils/session-status.uti
 
 import { PIPELINE_POLL_MS } from "@/constants/config";
 
-import type { UpdateAiNotesData } from "@/types/ai-notes.types";
+import type { AiNotes, UpdateAiNotesData } from "@/types/ai-notes.types";
 
 import { aiJobsService, hasActiveAiJob } from "@/services/ai-jobs.service";
 
@@ -108,15 +108,33 @@ export const useAiNotes = (sessionId?: string) => {
 
       aiNotesService.update(sessionId!, data),
 
-    onSuccess: async () => {
+    onSuccess: (data, variables) => {
 
       if (!sessionId) return;
 
-      await queryClient.invalidateQueries({
+      queryClient.setQueryData<AiNotes | null | undefined>(
 
-        queryKey: aiNotesKeys.detail(sessionId),
+        aiNotesKeys.detail(sessionId),
 
-      });
+        (previous) => {
+
+          if (!previous) return data;
+
+          return {
+
+            ...previous,
+
+            ...data,
+
+            medications:
+
+              variables.medications ?? data.medications ?? previous.medications,
+
+          };
+
+        },
+
+      );
 
     },
 

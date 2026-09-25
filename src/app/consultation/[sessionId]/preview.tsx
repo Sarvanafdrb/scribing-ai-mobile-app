@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import { GlassHeader } from "@/components/ui/GlassHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -35,9 +34,11 @@ import {
   buildAiNotesExportContent,
   buildAiNotesExportHtml,
 } from "@/utils/ai-notes-export.utils";
+import { generateAndShareConsultationPdf } from "@/utils/consultation-pdf.utils";
 import {
   findClinicalCompletenessIssue,
   getApiErrorMessage,
+  normalizeMedicationsForEditing,
 } from "@/utils/prescriptionMedication.utils";
 import type { VoiceEditPreviewResult } from "@/types/ai-notes.types";
 import { colors, spacing, typography } from "@/theme";
@@ -76,31 +77,31 @@ export default function PreviewScreen() {
     setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const createPdf = async () => {
-    if (!session || !aiNotes || !sessionId) return null;
-    const content = buildAiNotesExportContent(aiNotes, session);
-    const html = buildAiNotesExportHtml(content);
-    const file = await Print.printToFileAsync({ html });
-    return file.uri;
-  };
-
   const handlePdf = async () => {
+    if (!session || !aiNotes || !sessionId) return;
     try {
       setExporting(true);
-      const uri = await createPdf();
-      if (!uri) return;
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: "application/pdf",
-          dialogTitle: "Share consultation PDF",
-          UTI: "com.adobe.pdf",
-        });
-      } else {
-        Alert.alert("PDF ready", "PDF was generated on this device.");
-      }
-    } catch {
-      Alert.alert("PDF failed", "Unable to generate the consultation PDF.");
+      const content = buildAiNotesExportContent(aiNotes, session);
+      const html = buildAiNotesExportHtml(content);
+      const patient = getPatientFromSession(session);
+      const label = patient
+        ? getPatientFullName(patient)
+        : session.sessionCode || sessionId;
+      await generateAndShareConsultationPdf(html, `consultation-${label}`);
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Unable to generate the consultation PDF.";
+      Alert.alert("PDF failed", detail, [
+        { text: "OK" },
+        {
+          text: "Use Print",
+          onPress: () => {
+            void handlePrint();
+          },
+        },
+      ]);
     } finally {
       setExporting(false);
     }
@@ -122,9 +123,16 @@ export default function PreviewScreen() {
 
   const saveConsultation = async () => {
     if (!sessionId || !aiNotes) return;
-    const issue = findClinicalCompletenessIssue(aiNotes.medications || []);
+    const medications =
+      normalizeMedicationsForEditing(aiNotes.medications, aiNotes.plan) ||
+      aiNotes.medications ||
+      [];
+    const issue = findClinicalCompletenessIssue(medications);
     if (issue) {
-      Alert.alert("Prescription incomplete", issue.message);
+      Alert.alert(
+        "Prescription incomplete",
+        `${issue.message}\n\nGo back to AI Notes and complete M / A / N and Days.`,
+      );
       return;
     }
     try {
@@ -136,7 +144,7 @@ export default function PreviewScreen() {
         assessment: aiNotes.assessment,
         plan: aiNotes.plan,
         remarks: aiNotes.remarks,
-        medications: aiNotes.medications,
+        medications,
       });
       setSaveSheetOpen(true);
     } catch (error) {

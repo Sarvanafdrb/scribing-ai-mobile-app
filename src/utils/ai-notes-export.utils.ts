@@ -174,12 +174,19 @@ export const buildAiNotesExportHtml = (content: AiNotesExportContent) => {
           .join("");
 
   return `<!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Consultation Report</title>
-    </head>
-    <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;color:#111827;">
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Consultation Report</title>
+    <style>
+      @page { margin: 12mm; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; }
+    </style>
+  </head>
+  <body style="padding:24px;color:#111827;">
       <header style="border-bottom:2px solid #2563eb;padding-bottom:12px;margin-bottom:20px;">
         <h1 style="margin:0;font-size:20px;">${escapeHtml(
           content.metadata.organizationName,
@@ -226,6 +233,6 @@ export const buildAiNotesExportHtml = (content: AiNotesExportContent) => {
           <tbody>${medRows}</tbody>
         </table>
       </section>
-    </body>
-  </html>`;
+  </body>
+</html>`;
 };

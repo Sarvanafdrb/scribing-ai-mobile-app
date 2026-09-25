@@ -74,9 +74,42 @@ export const findClinicalCompletenessIssue = (
   return null;
 };
 
-export const inferDefaultDaysFromPlan = (plan?: string): string | undefined => {
-  const match = plan?.match(/(\d+)\s*days?/i);
-  return match?.[1];
+/** Parse common Indian prescription patterns like 1-0-1 or 1/0/1 from free text. */
+export const parseManScheduleFromText = (
+  text?: string,
+): Pick<AiNotesMedication, "morning" | "afternoon" | "night"> | null => {
+  const trimmed = text?.trim();
+  if (!trimmed) return null;
+
+  const dash = trimmed.match(/\b(\d+)\s*[-–]\s*(\d+)\s*[-–]\s*(\d+)\b/);
+  if (dash) {
+    return { morning: dash[1], afternoon: dash[2], night: dash[3] };
+  }
+
+  const slash = trimmed.match(/\b(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\b/);
+  if (slash) {
+    return { morning: slash[1], afternoon: slash[2], night: slash[3] };
+  }
+
+  return null;
+};
+
+export const inferDefaultDaysFromPlan = (
+  plan?: string,
+  instructions?: string,
+): string | undefined => {
+  const fromPlan = plan?.match(/(\d+)\s*days?/i)?.[1];
+  if (fromPlan) return fromPlan;
+  return instructions?.match(/(?:for\s+)?(\d+)\s*days?/i)?.[1];
+};
+
+const coerceDaysString = (days: unknown): string | undefined => {
+  if (days == null) return undefined;
+  if (typeof days === "number" && Number.isFinite(days) && days > 0) {
+    return String(Math.trunc(days));
+  }
+  const trimmed = String(days).trim();
+  return trimmed || undefined;
 };
 
 export const normalizeMedicationsForEditing = (
@@ -84,11 +117,31 @@ export const normalizeMedicationsForEditing = (
   plan?: string,
 ): AiNotesMedication[] | undefined => {
   if (!medications?.length) return medications;
-  const defaultDays = inferDefaultDaysFromPlan(plan);
+
   return medications.map((med) => {
-    if (med.days?.trim()) return med;
-    if (!defaultDays) return med;
-    return { ...med, days: defaultDays };
+    let next: AiNotesMedication = { ...med };
+    const coercedDays = coerceDaysString(next.days);
+    if (coercedDays) {
+      next = { ...next, days: coercedDays };
+    }
+
+    if (!hasMedicationDosageFrequency(next)) {
+      const schedule =
+        parseManScheduleFromText(next.instructions) ||
+        parseManScheduleFromText(plan);
+      if (schedule) {
+        next = { ...next, ...schedule };
+      }
+    }
+
+    if (!next.days?.trim()) {
+      const defaultDays = inferDefaultDaysFromPlan(plan, next.instructions);
+      if (defaultDays) {
+        next = { ...next, days: defaultDays };
+      }
+    }
+
+    return next;
   });
 };
 
