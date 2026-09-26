@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, spacing, typography } from "@/theme";
 import { formatDuration } from "@/utils/date.utils";
@@ -8,14 +8,23 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 
 interface AudioPlayerProps {
   uri?: string | null;
+  knownDuration?: number;
 }
 
-export function AudioPlayer({ uri }: AudioPlayerProps) {
+export function AudioPlayer({ uri, knownDuration }: AudioPlayerProps) {
   const player = useAudioPlayer(uri ?? null);
   const status = useAudioPlayerStatus(player);
 
+  useEffect(() => {
+    void setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: false,
+    });
+  }, []);
+
   const toggle = () => {
-    if (!uri || !status.isLoaded) return;
+    if (!uri) return;
+    if (!status.isLoaded && !status.error) return;
     if (status.playing) {
       player.pause();
     } else {
@@ -26,15 +35,27 @@ export function AudioPlayer({ uri }: AudioPlayerProps) {
   if (!uri) return null;
 
   const position = status.currentTime || 0;
-  const duration = status.duration || 0;
+  const duration =
+    status.duration && status.duration > 0
+      ? status.duration
+      : knownDuration && knownDuration > 0
+        ? knownDuration
+        : 0;
   const progress = duration > 0 ? position / duration : 0;
+  const canPlay = status.isLoaded || Boolean(status.error);
+
+  const errorMessage = status.error
+    ? status.error.includes("code 4")
+      ? "Recording format or URL not supported on this device. Pull to refresh the session."
+      : status.error
+    : null;
 
   return (
     <View style={styles.container}>
       <Pressable
         onPress={toggle}
         style={styles.playBtn}
-        disabled={!status.isLoaded && !status.isBuffering}
+        disabled={!canPlay && !status.isBuffering}
       >
         <Ionicons
           name={status.playing ? "pause" : "play"}
@@ -47,9 +68,9 @@ export function AudioPlayer({ uri }: AudioPlayerProps) {
         <Text style={styles.time}>
           {formatDuration(position)} / {formatDuration(duration)}
         </Text>
-        {status.error ? (
-          <Text style={styles.error} numberOfLines={2}>
-            {status.error}
+        {errorMessage ? (
+          <Text style={styles.error} numberOfLines={3}>
+            {errorMessage}
           </Text>
         ) : null}
       </View>

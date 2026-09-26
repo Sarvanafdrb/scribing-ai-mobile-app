@@ -108,3 +108,21 @@ export const getPatientInitials = (
   const last = patient.lastName?.[0] || "";
   return `${first}${last}`.toUpperCase() || "?";
 };
+
+export const formatPatientDateOfBirth = (dateOfBirth?: string | null) => {
+  if (!dateOfBirth) return "—";
+  try {
+    return new Date(dateOfBirth).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+};
+
+export const getHomeMedications = (
+  patient: Patient | null | undefined,
+): string[] =>
+  (patient?.medications || []).map((med) => med.trim()).filter(Boolean);

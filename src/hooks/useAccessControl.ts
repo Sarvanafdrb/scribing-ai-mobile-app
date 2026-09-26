@@ -9,7 +9,11 @@ import {
   APPOINTMENT_EDIT,
   APPOINTMENT_VIEW,
   canAccessDoctorWorkspace,
+  MEDICINE_VIEW,
+  MEDICINE_CREATE,
+  MEDICINE_EDIT,
   PATIENT_CREATE,
+  PATIENT_EDIT,
   PATIENT_VIEW,
   SESSION_CREATE,
 } from "@/constants/permissions";
@@ -31,6 +35,9 @@ export const useAccessControl = () => {
     canCreatePatient: () =>
       hasPermission(user, PATIENT_CREATE, token) ||
       hasPermission(user, "patient:create", token),
+    canEditPatient: () =>
+      hasPermission(user, PATIENT_EDIT, token) ||
+      hasPermission(user, "patient:update", token),
     canViewAppointments: () =>
       hasPermission(user, APPOINTMENT_VIEW, token) ||
       hasPermission(user, "appointment:read", token),
@@ -39,5 +46,14 @@ export const useAccessControl = () => {
         hasPermission(user, "appointment:update", token)) &&
       (hasPermission(user, SESSION_CREATE, token) ||
         hasPermission(user, "session:create", token)),
+    canViewMedicines: () =>
+      hasPermission(user, MEDICINE_VIEW, token) ||
+      hasPermission(user, "medicine:read", token),
+    canCreateMedicine: () =>
+      hasPermission(user, MEDICINE_CREATE, token) ||
+      hasPermission(user, "medicine:create", token),
+    canEditMedicine: () =>
+      hasPermission(user, MEDICINE_EDIT, token) ||
+      hasPermission(user, "medicine:update", token),
   };
 };

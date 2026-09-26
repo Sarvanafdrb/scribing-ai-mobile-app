@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography } from "@/theme";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +21,7 @@ interface PatientCardProps {
   status?: SessionStatus;
   time?: string;
   onPress?: () => void;
+  showChevron?: boolean;
 }
 
 export function PatientCard({
@@ -28,6 +30,7 @@ export function PatientCard({
   status,
   time,
   onPress,
+  showChevron = false,
 }: PatientCardProps) {
   const name = getPatientFullName(patient);
   const age = getPatientAge(patient);
@@ -73,6 +76,13 @@ export function PatientCard({
               />
             ) : null}
           </View>
+          {showChevron ? (
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.mutedLight}
+            />
+          ) : null}
         </View>
       </Card>
     </Pressable>

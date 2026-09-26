@@ -7,6 +7,7 @@ import { GlassHeader } from "@/components/ui/GlassHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SessionSmsPanel } from "@/components/consultation/SessionSmsPanel";
+import { SessionRecordingPlayer } from "@/components/consultation/SessionRecordingPlayer";
 import { useSession } from "@/hooks/sessions/useSession";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import { getPatientFullName } from "@/utils/patient.utils";
@@ -41,6 +42,17 @@ export default function CompletedScreen() {
               ? `${getPatientFullName(patient)}'s consultation has been completed.`
               : "The consultation has been completed successfully."}
           </Text>
+          {sessionId && session && (session.audioUrl || session.audioPlaybackUrl) ? (
+            <>
+              <Text style={styles.playbackLabel}>Consultation recording</Text>
+              <SessionRecordingPlayer
+                sessionId={sessionId}
+                audioUrl={session.audioUrl}
+                audioPlaybackUrl={session.audioPlaybackUrl}
+                knownDuration={session.duration}
+              />
+            </>
+          ) : null}
           {sessionId && session ? (
             <SessionSmsPanel
               sessionId={sessionId}
@@ -78,5 +90,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     marginBottom: spacing.md,
+  },
+  playbackLabel: {
+    ...typography.label,
+    color: colors.muted,
+    alignSelf: "stretch",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
 });

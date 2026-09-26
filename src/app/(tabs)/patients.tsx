@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -10,25 +9,20 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePatients } from "@/hooks/patients/usePatients";
-import { useSessionMutations } from "@/hooks/sessions/useSessionMutations";
 import { useTenantScope } from "@/hooks/useTenantScope";
-import { useAuthStore } from "@/store/auth.store";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
 import { PatientCard } from "@/components/patients/PatientCard";
 import { EmptyState, ErrorState } from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/Skeleton";
-import { getPatientFullName, getPatientId } from "@/utils/patient.utils";
+import { getPatientId } from "@/utils/patient.utils";
 import type { Patient } from "@/types/patient.types";
 import { colors, spacing, typography } from "@/theme";
 
 export default function PatientsScreen() {
   const insets = useSafeAreaInsets();
   const { organizationId } = useTenantScope();
-  const user = useAuthStore((s) => s.user);
-  const { createSession } = useSessionMutations();
   const [search, setSearch] = useState("");
-  const [startingId, setStartingId] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -46,52 +40,10 @@ export default function PatientsScreen() {
     Boolean(organizationId),
   );
 
-  const startConsultation = async (patient: Patient) => {
-    const patientId = getPatientId(patient);
-    const doctorId = String(user?.id || user?._id || "");
-    if (!organizationId || !patientId || !doctorId) {
-      Alert.alert("Unable to start", "Missing workspace or doctor context.");
-      return;
-    }
-
-    try {
-      setStartingId(patientId);
-      const session = await createSession.mutateAsync({
-        organizationId,
-        patientId,
-        userId: doctorId,
-        sessionType: "consultation",
-        title: `Consultation · ${getPatientFullName(patient)}`,
-      });
-      const sessionId = String(session._id || session.id || "");
-      if (!sessionId) throw new Error("Missing session id");
-      router.push(`/consultation/${sessionId}/brief` as never);
-    } catch (error: unknown) {
-      const message =
-        (
-          error as {
-            response?: { data?: { message?: string } };
-          }
-        )?.response?.data?.message || "Could not start consultation.";
-      Alert.alert("Start failed", message);
-    } finally {
-      setStartingId(null);
-    }
-  };
-
   const onPatientPress = (patient: Patient) => {
     const id = getPatientId(patient);
-    Alert.alert(getPatientFullName(patient), "What would you like to do?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "View profile",
-        onPress: () => router.push(`/patient/${id}` as never),
-      },
-      {
-        text: "Start consultation",
-        onPress: () => startConsultation(patient),
-      },
-    ]);
+    if (!id) return;
+    router.push(`/patient/${id}` as never);
   };
 
   return (
@@ -131,11 +83,7 @@ export default function PatientsScreen() {
           renderItem={({ item }) => (
             <PatientCard
               patient={item}
-              subtitle={
-                startingId === getPatientId(item)
-                  ? "Starting consultation…"
-                  : undefined
-              }
+              showChevron
               onPress={() => onPatientPress(item)}
             />
           )}

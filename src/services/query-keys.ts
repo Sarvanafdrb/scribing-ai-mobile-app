@@ -7,6 +7,20 @@ export const sessionKeys = {
     [...sessionKeys.all, "stats", organizationId || "all"] as const,
   details: () => [...sessionKeys.all, "detail"] as const,
   detail: (id: string) => [...sessionKeys.details(), id] as const,
+  doctorDashboardStats: (
+    doctorId: string,
+    organizationId: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ) =>
+    [
+      ...sessionKeys.all,
+      "doctor-dashboard-stats",
+      doctorId,
+      organizationId,
+      dateFrom || "",
+      dateTo || "",
+    ] as const,
 };
 
 export const patientKeys = {
@@ -39,4 +53,13 @@ export const appointmentKeys = {
   lists: () => [...appointmentKeys.all, "list"] as const,
   list: (filters: Record<string, unknown>) =>
     [...appointmentKeys.lists(), filters] as const,
+};
+
+export const medicineKeys = {
+  all: ["medicines"] as const,
+  lists: () => [...medicineKeys.all, "list"] as const,
+  list: (filters: Record<string, unknown>) =>
+    [...medicineKeys.lists(), filters] as const,
+  details: () => [...medicineKeys.all, "detail"] as const,
+  detail: (id: string) => [...medicineKeys.details(), id] as const,
 };

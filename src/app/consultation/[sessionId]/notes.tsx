@@ -4,6 +4,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,10 +20,12 @@ import { LoadingScreen, ErrorState } from "@/components/ui/EmptyState";
 import { useAiNotes } from "@/hooks/ai-notes/useAiNotes";
 import type { AiNotes, AiNotesMedication } from "@/types/ai-notes.types";
 import {
+  createEmptyMedication,
   findClinicalCompletenessIssue,
   getApiErrorMessage,
   normalizeMedicationsForEditing,
 } from "@/utils/prescriptionMedication.utils";
+import { MedicineSearchSheet } from "@/components/consultation/MedicineSearchSheet";
 import { colors, radius, spacing, typography } from "@/theme";
 
 export default function AiNotesScreen() {
@@ -39,6 +42,7 @@ export default function AiNotesScreen() {
     Record<number, { top: number; instructionY: number }>
   >({});
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [medicineSheetOpen, setMedicineSheetOpen] = useState(false);
 
   useEffect(() => {
     const showEvent =
@@ -110,6 +114,28 @@ export default function AiNotesScreen() {
 
   const setField = (key: keyof AiNotes, value: string) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
+
+  const addMedication = (medication: AiNotesMedication) => {
+    setHighlightMedIndex(null);
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            medications: [...(prev.medications || []), medication],
+          }
+        : prev,
+    );
+  };
+
+  const removeMedication = (index: number) => {
+    setHighlightMedIndex(null);
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const medications = [...(prev.medications || [])];
+      medications.splice(index, 1);
+      return { ...prev, medications };
+    });
   };
 
   const saveAndPreview = async () => {
@@ -202,9 +228,30 @@ export default function AiNotesScreen() {
           onChangeText={(v) => setField("remarks", v)}
         />
 
-        <Text style={styles.sectionTitle}>Prescription</Text>
+        <View style={styles.prescriptionHeader}>
+          <Text style={styles.sectionTitle}>Prescription</Text>
+          <View style={styles.prescriptionActions}>
+            <Button
+              title="Search"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              onPress={() => setMedicineSheetOpen(true)}
+            />
+            <Button
+              title="Add row"
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              onPress={() => addMedication(createEmptyMedication())}
+            />
+          </View>
+        </View>
         {(draft.medications || []).length === 0 ? (
-          <Text style={styles.empty}>No medications generated</Text>
+          <Text style={styles.empty}>
+            No medicines yet. Search the catalog or add a row to type a
+            prescription.
+          </Text>
         ) : (
           draft.medications!.map((med, index) => (
             <View
@@ -223,6 +270,7 @@ export default function AiNotesScreen() {
               <MedicationEditor
                 medication={med}
                 highlighted={highlightMedIndex === index}
+                onRemove={() => removeMedication(index)}
                 onInstructionsFocus={() => scrollToMedicationInstructions(index)}
                 onInstructionsLayout={(instructionY) => {
                   const prev = medLayoutRef.current[index] || {
@@ -266,6 +314,12 @@ export default function AiNotesScreen() {
           </View>
         </View>
       </View>
+
+      <MedicineSearchSheet
+        visible={medicineSheetOpen}
+        onClose={() => setMedicineSheetOpen(false)}
+        onSelect={addMedication}
+      />
     </View>
   );
 }
@@ -296,12 +350,14 @@ function NoteField({
 function MedicationEditor({
   medication,
   highlighted,
+  onRemove,
   onInstructionsFocus,
   onInstructionsLayout,
   onChange,
 }: {
   medication: AiNotesMedication;
   highlighted?: boolean;
+  onRemove?: () => void;
   onInstructionsFocus?: () => void;
   onInstructionsLayout?: (yWithinCard: number) => void;
   onChange: (med: AiNotesMedication) => void;
@@ -311,13 +367,20 @@ function MedicationEditor({
       style={[styles.medCard, highlighted ? styles.medCardHighlight : null]}
       elevated={false}
     >
-      <TextInput
-        value={medication.medicine}
-        onChangeText={(medicine) => onChange({ ...medication, medicine })}
-        style={styles.medName}
-        placeholder="Medicine"
-        placeholderTextColor={colors.mutedLight}
-      />
+      <View style={styles.medNameRow}>
+        <TextInput
+          value={medication.medicine}
+          onChangeText={(medicine) => onChange({ ...medication, medicine })}
+          style={[styles.medName, { flex: 1 }]}
+          placeholder="Medicine name"
+          placeholderTextColor={colors.mutedLight}
+        />
+        {onRemove ? (
+          <Pressable onPress={onRemove} hitSlop={8} style={styles.removeMed}>
+            <Text style={styles.removeMedText}>Remove</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <View style={styles.medRow}>
         {(
           [
@@ -377,6 +440,17 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     marginTop: spacing.md,
   },
+  prescriptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  prescriptionActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
   empty: { ...typography.body, color: colors.muted },
   fieldCard: { gap: spacing.sm },
   label: {
@@ -398,6 +472,17 @@ const styles = StyleSheet.create({
   medCardHighlight: {
     borderWidth: 2,
     borderColor: colors.warning,
+  },
+  medNameRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  removeMed: { paddingTop: 4 },
+  removeMedText: {
+    ...typography.caption,
+    color: colors.danger,
+    fontWeight: "600",
   },
   medName: {
     ...typography.bodyMedium,

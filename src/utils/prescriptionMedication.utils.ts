@@ -1,5 +1,14 @@
 import type { AiNotesMedication } from "@/types/ai-notes.types";
 
+export const createEmptyMedication = (): AiNotesMedication => ({
+  medicine: "",
+  morning: "",
+  afternoon: "",
+  night: "",
+  days: "",
+  instructions: "",
+});
+
 export const PRESCRIPTION_DAYS_MAX = 365;
 
 export const hasMedicationDosageFrequency = (

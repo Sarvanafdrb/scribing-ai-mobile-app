@@ -82,6 +82,10 @@ export const SESSION_VIEW = "SESSION_VIEW";
 export const SESSION_CREATE = "SESSION_CREATE";
 export const RECORDING_CREATE = "RECORDING_CREATE";
 
+export const MEDICINE_VIEW = "MEDICINE_VIEW";
+export const MEDICINE_CREATE = "MEDICINE_CREATE";
+export const MEDICINE_EDIT = "MEDICINE_EDIT";
+
 export function canManageAllUsersFromPermissions(
   permissions: string[],
   isSuperAdmin = false,

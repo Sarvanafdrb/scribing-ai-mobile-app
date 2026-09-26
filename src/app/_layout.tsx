@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { ToastHost } from "@/components/ui/ToastHost";
 import { colors } from "@/theme";
 import "../../global.css";
 
@@ -44,7 +45,20 @@ export default function RootLayout() {
               name="patient/[patientId]"
               options={{ animation: "slide_from_right" }}
             />
+            <Stack.Screen
+              name="medicines"
+              options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+              name="create-medicine"
+              options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+              name="medicine/[medicineId]"
+              options={{ animation: "slide_from_right" }}
+            />
           </Stack>
+          <ToastHost />
         </QueryProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

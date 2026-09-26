@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
-import { AudioPlayer } from "@/components/ui/AudioPlayer";
+import { SessionRecordingPlayer } from "@/components/consultation/SessionRecordingPlayer";
+import { ConsultationRecordingControls } from "@/components/consultation/ConsultationRecordingControls";
 import { LoadingScreen, ErrorState } from "@/components/ui/EmptyState";
 import { AdmitPatientSheet } from "@/components/patients/AdmitPatientSheet";
 import { SessionVitalsInlineGrid } from "@/components/consultation/SessionVitalsInlineGrid";
@@ -37,7 +38,6 @@ import {
   getConsultationRouteForStatus,
   safeRouterBack,
 } from "@/utils/navigation.utils";
-import { resolveMediaUrl } from "@/utils/media.utils";
 import { SESSION_STATUS_COLORS, SESSION_STATUS_LABELS } from "@/constants/status";
 import { formatDate } from "@/utils/date.utils";
 import { getSessionDepartmentName } from "@/types/session.types";
@@ -182,14 +182,42 @@ export default function PatientDetailsScreen() {
           ]}
         />
 
-        {session.audioPlaybackUrl || session.audioUrl ? (
-          <Section title="Recording">
-            <AudioPlayer
-              uri={resolveMediaUrl(
-                session.audioPlaybackUrl || session.audioUrl,
-              )}
+        {session.audioUrl || session.audioPlaybackUrl ? (
+          <Section title="Recording playback">
+            <SessionRecordingPlayer
+              sessionId={sessionId!}
+              audioUrl={session.audioUrl}
+              audioPlaybackUrl={session.audioPlaybackUrl}
+              knownDuration={session.duration}
             />
           </Section>
+        ) : null}
+
+        {!isConsultationCompleted(session.status) &&
+        canRecord &&
+        !session.audioUrl ? (
+          <Section title="Consultation recording">
+            <Card style={styles.recordingCard}>
+              <ConsultationRecordingControls
+                sessionId={sessionId!}
+                compact
+              />
+            </Card>
+          </Section>
+        ) : null}
+
+        {!isConsultationCompleted(session.status) && canRecord ? (
+          <Button
+            title={
+              session.status === "recording"
+                ? "Open recorder"
+                : "Go to recording screen"
+            }
+            variant="outline"
+            onPress={() =>
+              router.push(`/consultation/${sessionId}/recording` as never)
+            }
+          />
         ) : null}
 
         <Section title="Allergies">
@@ -364,6 +392,9 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.muted,
     marginTop: spacing.xs,
+  },
+  recordingCard: {
+    paddingVertical: spacing.sm,
   },
   footer: {
     position: "absolute",

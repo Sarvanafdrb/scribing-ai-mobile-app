@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Card } from "@/components/ui/Card";
 import { WorkspaceSwitcherSheet } from "@/components/workspace/WorkspaceSwitcherSheet";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useAccessControl } from "@/hooks/useAccessControl";
 import { getUserOrganizationName } from "@/types/auth.types";
 import { colors, spacing, typography } from "@/theme";
 
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
   const workspace = useWorkspaceStore((s) => s.selectedWorkspace);
   const { workspaces } = useWorkspaces();
+  const { canViewMedicines } = useAccessControl();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
   const canSwitchWorkspace = workspaces.length > 1;
@@ -65,6 +67,13 @@ export default function ProfileScreen() {
         </Card>
 
         <View style={styles.menu}>
+          {canViewMedicines() ? (
+            <MenuRow
+              icon="medkit-outline"
+              label="Medicines"
+              onPress={() => router.push("/medicines")}
+            />
+          ) : null}
           <MenuRow
             icon="settings-outline"
             label="Settings"

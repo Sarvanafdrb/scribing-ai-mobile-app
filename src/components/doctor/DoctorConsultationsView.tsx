@@ -30,7 +30,9 @@ import {
   type Appointment,
 } from "@/types/appointment.types";
 import type { DoctorQueueItem } from "@/types/encounter.types";
-import { getDoctorDisplayName } from "@/types/auth.types";
+import {
+  getDoctorDisplayName,
+} from "@/types/auth.types";
 import { getSessionDepartmentName } from "@/types/session.types";
 import {
   getPatientAge,
@@ -41,7 +43,10 @@ import {
   getConsultationBriefPath,
   getDoctorWorkspacePath,
 } from "@/utils/doctor-navigation.utils";
+import { getDefaultDoctorDateRange } from "@/utils/doctor-dashboard-date-range";
 import { getGreeting } from "@/utils/date.utils";
+import { useDoctorDashboardStats } from "@/hooks/doctor/useDoctorDashboardStats";
+import { DoctorDashboardSummary } from "@/components/doctor/DoctorDashboardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -64,6 +69,13 @@ export function DoctorConsultationsView() {
   const { workspaceName } = useTenantScope();
   const { canCreatePatient, canViewAppointments, canCheckInAppointment } =
     useAccessControl();
+  const dashboardRange = useMemo(() => getDefaultDoctorDateRange(), []);
+  const {
+    data: dashboardStats,
+    isLoading: dashboardLoading,
+    isError: dashboardError,
+    refetch: refetchDashboard,
+  } = useDoctorDashboardStats(dashboardRange);
   const {
     items,
     doctorId,
@@ -122,6 +134,18 @@ export function DoctorConsultationsView() {
       seenCount,
     };
   }, [items, scheduledToday.length]);
+
+  const notesAwaitingReview = useMemo(
+    () =>
+      items.filter((item) => item.session?.status === "ready_for_review")
+        .length,
+    [items],
+  );
+
+  const handleRefresh = () => {
+    refetch();
+    refetchDashboard();
+  };
 
   const clinicDateLabel = useMemo(
     () =>
@@ -227,7 +251,7 @@ export function DoctorConsultationsView() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -257,6 +281,13 @@ export function DoctorConsultationsView() {
           />
           <StatCard label="Seen" value={String(stats.seenCount)} />
         </View>
+
+        <DoctorDashboardSummary
+          stats={dashboardStats}
+          notesAwaitingReview={notesAwaitingReview}
+          isLoading={dashboardLoading}
+          isError={dashboardError}
+        />
 
         <Text style={styles.sectionTitle}>Today&apos;s consultations</Text>
 

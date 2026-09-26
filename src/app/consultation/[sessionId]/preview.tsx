@@ -25,6 +25,7 @@ import { useSession } from "@/hooks/sessions/useSession";
 import { useAiNotes } from "@/hooks/ai-notes/useAiNotes";
 import { aiNotesKeys, sessionKeys } from "@/services/query-keys";
 import { SessionSmsPanel } from "@/components/consultation/SessionSmsPanel";
+import { SessionRecordingPlayer } from "@/components/consultation/SessionRecordingPlayer";
 import { SaveConsultationSheet } from "@/components/consultation/SaveConsultationSheet";
 import { getPatientFromSession } from "@/hooks/doctor/useDoctorQueue";
 import { getPatientFullName } from "@/utils/patient.utils";
@@ -202,6 +203,28 @@ export default function PreviewScreen() {
             </Text>
           ) : null}
         </Card>
+
+        {session.audioUrl || session.audioPlaybackUrl ? (
+          <Card style={{ gap: spacing.sm }}>
+            <Text style={styles.sectionTitle}>Recording playback</Text>
+            <SessionRecordingPlayer
+              sessionId={sessionId!}
+              audioUrl={session.audioUrl}
+              audioPlaybackUrl={session.audioPlaybackUrl}
+              knownDuration={session.duration}
+            />
+          </Card>
+        ) : null}
+
+        {!isConsultationCompleted(session.status) ? (
+          <Button
+            title="Edit notes & medicines"
+            variant="outline"
+            onPress={() =>
+              router.push(`/consultation/${sessionId}/notes` as never)
+            }
+          />
+        ) : null}
 
         <Collapsible
           title="Chief Complaint / HPI"

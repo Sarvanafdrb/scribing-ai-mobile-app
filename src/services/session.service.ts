@@ -1,4 +1,5 @@
 import { api } from "@/services/api";
+import type { DoctorDashboardStats } from "@/types/doctor-dashboard.types";
 import {
   CreateSessionData,
   Session,
@@ -52,6 +53,18 @@ export const sessionService = {
   getStats: async (): Promise<SessionStats> => {
     const response = await api.get("/sessions/stats");
     return response.data.data;
+  },
+
+  getDoctorDashboardStats: async (params?: {
+    organizationId?: string;
+    doctorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    const response = await api.get("/sessions/doctor-dashboard-stats", {
+      params,
+    });
+    return response.data.data as DoctorDashboardStats;
   },
 
   getById: async (id: string): Promise<Session> => {
