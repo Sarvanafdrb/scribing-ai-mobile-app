@@ -11,12 +11,14 @@ interface SearchInputProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 export function SearchInput({
   value,
   onChangeText,
   placeholder = "Search…",
+  autoFocus,
 }: SearchInputProps) {
   return (
     <View style={styles.container}>
@@ -32,6 +34,7 @@ export function SearchInput({
         selectionColor={colors.primaryLight}
         autoCapitalize="none"
         autoCorrect={false}
+        autoFocus={autoFocus}
         clearButtonMode="while-editing"
       />
     </View>

@@ -1,7 +1,7 @@
 import type { TranscriptData } from "@/types/transcript.types";
 import type { Patient } from "@/types/patient.types";
 import type { AiNotes } from "@/types/ai-notes.types";
-import type { Encounter } from "@/types/encounter.types";
+import type { Encounter, RoundSchedule } from "@/types/encounter.types";
 
 export type SessionType = "consultation" | "follow_up" | "diagnostic" | "other";
 export type VisitType = "outpatient" | "inpatient";
@@ -108,6 +108,9 @@ export interface Session {
   updatedAt?: string;
   lastVisit?: LastVisit | null;
   previousHistory?: PreviousHistoryItem[];
+  todaySchedule?: RoundSchedule[];
+  hasNextRoundToday?: boolean;
+  allRoundsCompletedToday?: boolean;
 }
 
 export interface CreateSessionData {
