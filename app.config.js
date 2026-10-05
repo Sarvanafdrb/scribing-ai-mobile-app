@@ -41,7 +41,6 @@ module.exports = {
     ...appJson.expo,
     android: {
       ...appJson.expo.android,
-      usesCleartextTraffic: true,
       softwareKeyboardLayoutMode: "resize",
     },
     extra: {
